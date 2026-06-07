@@ -1,0 +1,110 @@
+[
+  {
+    "id": "1",
+    "name": "BSSA",
+    "difficulty": "Re:MASTER",
+    "level": 14,
+    "isPlus": false,
+    "cover": "./public/covers/semikss/Blows Up Everything.png",
+    "author": "USAO",
+    "difficultyAuthor": "サファ太",
+    "bpm": 200,
+    "chartType": "dx"
+  },
+  {
+    "id": "2",
+    "name": "CCBDA",
+    "difficulty": "MASTER",
+    "level": 13,
+    "isPlus": false,
+    "cover": "./public/covers/semikss/Caliburne ～Story of the Legendary sword～.png",
+    "author": "DigitalPulse",
+    "difficultyAuthor": "BeatKing",
+    "bpm": 190,
+    "chartType": "standard"
+  },
+  {
+    "id": "3",
+    "name": "極SA圏",
+    "difficulty": "Re:MASTER",
+    "level": 14,
+    "isPlus": false,
+    "cover": "./public/covers/semikss/極圏.png",
+    "author": "SynthLord",
+    "difficultyAuthor": "ChartDesigner",
+    "bpm": 205,
+    "chartType": "standard"
+  },
+  {
+    "id": "4",
+    "name": "KING is DDBACK!!",
+    "difficulty": "EXPERT",
+    "level": 11,
+    "isPlus": true,
+    "cover": "./public/covers/semikss/KING is BACK!!.png",
+    "author": "PixelBeat",
+    "difficultyAuthor": "RhythmSage",
+    "bpm": 182,
+    "chartType": "dx"
+  },
+  {
+    "id": "5",
+    "name": "MutaAADDAnarok",
+    "difficulty": "Re:MASTER",
+    "level": 13,
+    "isPlus": true,
+    "cover": "./public/covers/semikss/Ragnarok.png",
+    "author": "CosmicFlow",
+    "difficultyAuthor": "NoteNinja",
+    "bpm": 195,
+    "chartType": "dx"
+  },
+  {
+    "id": "7",
+    "name": "Rising onADDAD the horizon",
+    "difficulty": "EXPERT",
+    "level": 10,
+    "isPlus": false,
+    "cover": "./public/covers/semikss/Rising on the horizon.png",
+    "author": "VoltAge",
+    "difficultyAuthor": "BeatMaster",
+    "bpm": 160,
+    "chartType": "standard"
+  },
+  {
+    "id": "8",
+    "name": "アージェントシンdadaメトリー",
+    "difficulty": "MASTER",
+    "level": 12,
+    "isPlus": true,
+    "cover": "./public/covers/semikss/アージェントシンメトリー.png",
+    "author": "FrostByte",
+    "difficultyAuthor": "ChartSmith",
+    "bpm": 185,
+    "chartType": "dx"
+  },
+  {
+    "id": "9",
+    "name": "チエルカ／エソsdaテリカ",
+    "difficulty": "Re:MASTER",
+    "level": 14,
+    "isPlus": false,
+    "cover": "./public/covers/semikss/チエルカ／エソテリカ.png",
+    "author": "GhostNote",
+    "difficultyAuthor": "LevelLord",
+    "bpm": 210,
+    "chartType": "dx"
+  },
+  {
+    "id": "10",
+    "name": "患部で止まってすぐwww溶ける～狂気の優曇華院",
+    "difficulty": "EXPERT",
+    "level": 11,
+    "isPlus": false,
+    "cover": "./public/covers/semikss/患部で止まってすぐ溶ける～狂気の優曇華院.png",
+    "author": "SilkWave",
+    "difficultyAuthor": "RhythmRuler",
+    "bpm": 180,
+    "chartType": "standard"
+  }
+]

@@ -1,0 +1,466 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply bg-dark-bg text-white;
+}
+
+/* Custom Scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-blue-800/30 rounded-full;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-blue-500/50 rounded-full;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  @apply bg-blue-400/70;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* 长标题跑马灯滚动动画 */
+@keyframes marquee {
+  0% { 
+    transform: translateX(100%); 
+  }
+  100% { 
+    transform: translateX(-100%); 
+  }
+}
+
+/* 无缝头尾循环跑马灯动画 */
+@keyframes marquee {
+  0% { 
+    transform: translateX(0); 
+  }
+  100% { 
+    /* 因为容器内有两份相同的文本，平移 -50% 刚好滚动完一份 */
+    transform: translateX(-50%); 
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content; 
+  /* 注意：这里不写死 duration，由 React 动态传入 */
+  animation-name: marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform; 
+}
+
+/* 双文本之间的间距 */
+.marquee-text {
+  flex-shrink: 0;
+  padding-right: 4rem; /* 64px 间距，与 JS 中的计算保持一致 */
+}
+/* 3D Card Flip */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* ===== Card Entrance Animation - 炫酷抽卡特效 ===== */
+@keyframes cardEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.1) translateY(200px) rotateX(-40deg) rotateZ(-10deg);
+    filter: blur(8px) brightness(2);
+  }
+  25% {
+    opacity: 0.6;
+    filter: blur(2px) brightness(1.5);
+  }
+  45% {
+    transform: scale(1.15) translateY(-30px) rotateX(10deg) rotateZ(3deg);
+    filter: blur(0px) brightness(1.2);
+  }
+  60% {
+    transform: scale(0.95) translateY(8px) rotateX(-5deg) rotateZ(-1deg);
+  }
+  75% {
+    transform: scale(1.03) translateY(-3px) rotateX(2deg) rotateZ(0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotateX(0deg) rotateZ(0deg);
+    filter: blur(0px) brightness(1);
+  }
+}
+
+.animate-cardEntrance {
+  animation: cardEntrance 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  opacity: 0;
+}
+
+/* ===== Card Exit Animation - 炸裂退场 ===== */
+@keyframes cardExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotateX(0deg);
+    filter: blur(0px);
+  }
+  20% {
+    transform: scale(1.08) translateY(-15px) rotateX(-5deg);
+    filter: brightness(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.1) translateY(-180px) rotateX(35deg);
+    filter: blur(10px) brightness(0.5);
+  }
+}
+
+.animate-cardExit {
+  animation: cardExit 0.6s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+}
+
+/* ===== Tag Entrance Animation - 简洁现代 ===== */
+@keyframes tagEntrance {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0px);
+  }
+}
+
+.animate-tagEntrance {
+  animation: tagEntrance 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  opacity: 0;
+}
+
+/* ===== Tag Exit Animation - 简洁现代 ===== */
+@keyframes tagExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px);
+    filter: blur(2px);
+  }
+}
+
+.animate-tagExit {
+  animation: tagExit 0.35s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+}
+
+/* ===== Card Flip Reveal - 翻转闪光 ===== */
+@keyframes cardFlipReveal {
+  0% {
+    box-shadow: 0 0 0px rgba(255, 255, 255, 0), inset 0 0 0px rgba(255, 255, 255, 0);
+  }
+  30% {
+    box-shadow: 0 0 60px rgba(255, 220, 100, 0.6), inset 0 0 80px rgba(255, 255, 255, 0.4);
+  }
+  60% {
+    box-shadow: 0 0 30px rgba(255, 200, 50, 0.3), inset 0 0 40px rgba(255, 255, 255, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(255, 255, 255, 0), inset 0 0 0px rgba(255, 255, 255, 0);
+  }
+}
+
+.animate-cardFlipReveal {
+  animation: cardFlipReveal 0.8s ease-out forwards;
+}
+
+/* ===== Rarity Glow - 稀有度光晕 ===== */
+@keyframes rarityGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 20px currentColor);
+    opacity: 0.6;
+  }
+  50% {
+    filter: drop-shadow(0 0 15px currentColor) drop-shadow(0 0 40px currentColor);
+    opacity: 1;
+  }
+}
+
+.animate-rarityGlow {
+  animation: rarityGlow 2s ease-in-out infinite;
+}
+
+/* ===== Particle Float - 粒子漂浮 ===== */
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(50px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+.animate-particleFloat {
+  animation: particleFloat linear forwards;
+}
+
+/* ===== Screen Shake - 屏幕震动 ===== */
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-3px, 2px); }
+  20% { transform: translate(3px, -2px); }
+  30% { transform: translate(-2px, -3px); }
+  40% { transform: translate(2px, 3px); }
+  50% { transform: translate(-1px, 1px); }
+  60% { transform: translate(1px, -1px); }
+  70% { transform: translate(-1px, -1px); }
+  80% { transform: translate(1px, 1px); }
+  90% { transform: translate(0, 0); }
+}
+
+.animate-screenShake {
+  animation: screenShake 0.5s ease-in-out;
+}
+
+/* ===== Burst Ring - 爆发光环 ===== */
+@keyframes burstRing {
+  0% {
+    transform: scale(0);
+    opacity: 0.8;
+    border-width: 4px;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+    border-width: 0px;
+  }
+}
+
+.animate-burstRing {
+  animation: burstRing 1s ease-out forwards;
+}
+
+/* Card Glow Pulse */
+@keyframes cardGlow {
+  0%, 100% {
+    background: radial-gradient(ellipse at center, rgba(255, 200, 50, 0.3) 0%, transparent 70%);
+  }
+  50% {
+    background: radial-gradient(ellipse at center, rgba(255, 150, 50, 0.5) 0%, transparent 70%);
+  }
+}
+
+.animate-cardGlow {
+  animation: cardGlow 2s ease-in-out infinite;
+}
+
+/* Card Pulse (back side icon) */
+@keyframes cardPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.animate-cardPulse {
+  animation: cardPulse 1.5s ease-in-out infinite;
+}
+
+/* Card Reveal Flash */
+@keyframes cardReveal {
+  0% {
+    box-shadow: inset 0 0 60px rgba(255, 255, 255, 0);
+  }
+  30% {
+    box-shadow: inset 0 0 80px rgba(255, 220, 100, 0.8);
+  }
+  60% {
+    box-shadow: inset 0 0 40px rgba(255, 220, 100, 0.3);
+  }
+  100% {
+    box-shadow: inset 0 0 0px rgba(255, 220, 100, 0);
+  }
+}
+
+.animate-cardReveal {
+  animation: cardReveal 0.6s ease-out forwards;
+}
+
+/* Burst Fade Background */
+@keyframes burstFade {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+.animate-burstFade {
+  animation: burstFade 2.5s ease-out forwards;
+}
+
+/* Shine effect for text */
+@keyframes shine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-shine {
+  background: linear-gradient(90deg, #fff 0%, #ffd700 50%, #fff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shine 2s linear infinite;
+}
+
+/* Gacha Shake - more dramatic card-pack shake */
+@keyframes gachaShake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  10% { transform: translateX(-8px) rotate(-3deg); }
+  20% { transform: translateX(8px) rotate(3deg); }
+  30% { transform: translateX(-6px) rotate(-2deg); }
+  40% { transform: translateX(6px) rotate(2deg); }
+  50% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(4px) rotate(1deg); }
+  70% { transform: translateX(-2px) rotate(0deg); }
+  80% { transform: translateX(2px) rotate(0deg); }
+  90% { transform: translateX(0) rotate(0deg); }
+}
+
+.animate-gachaShake {
+  animation: gachaShake 1s ease-in-out infinite;
+}
+
+/* Gacha Bounce - icon bounce during shake */
+@keyframes gachaBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-12px) scale(1.1); }
+  50% { transform: translateY(0) scale(0.95); }
+  75% { transform: translateY(-6px) scale(1.05); }
+}
+
+.animate-gachaBounce {
+  animation: gachaBounce 0.6s ease-in-out infinite;
+}
+
+/* Gacha Sparkle - sparkle spin */
+@keyframes gachaSparkle {
+  0% { transform: rotate(0deg) scale(1); opacity: 1; }
+  25% { transform: rotate(90deg) scale(1.3); opacity: 0.7; }
+  50% { transform: rotate(180deg) scale(0.8); opacity: 1; }
+  75% { transform: rotate(270deg) scale(1.2); opacity: 0.7; }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+
+.animate-gachaSparkle {
+  animation: gachaSparkle 1s linear infinite;
+}
+
+/* Shimmer effect on button */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+/* Reusable card components */
+@layer components {
+  .card-cover-window {
+    @apply absolute top-[25px] left-[23px] right-[14px] z-10 overflow-hidden;
+  }
+
+  /* 👇 优化：增加 overflow-hidden 和 whitespace-nowrap 确保跑马灯效果不溢出、不换行 */
+  .card-title-strip {
+    @apply rounded-[10px] py-3 px-4 flex flex-col items-center justify-center text-center overflow-hidden;
+  }
+
+  /* 👇 新增：标题文本强制不换行 */
+  .card-title-text {
+    @apply text-white text-base font-black uppercase tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap;
+  }
+
+  .card-author {
+    @apply text-xs uppercase tracking-[0.22em] text-slate-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)];
+  }
+
+  .difficulty-label {
+    @apply bg-[#8b3bd6] px-3 py-1 rounded-[10px] shadow-[0_6px_12px_rgba(139,59,214,0.18)];
+  }
+
+  .lv-pill {
+    @apply bg-white/95 rounded-[12px] px-2 py-1 flex items-center gap-2 shadow-[0_12px_24px_rgba(2,6,23,0.18)];
+  }
+
+  .bottom-pill {
+    @apply relative overflow-hidden px-4 py-3 shadow-[0_18px_36px_rgba(15,23,42,0.12)];
+  }
+}

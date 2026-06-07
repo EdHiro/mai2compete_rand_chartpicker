@@ -1,0 +1,1 @@
+start cmd /k npm run sync & npx vite --host 
