@@ -1,3 +1,4 @@
+<img width="1672" height="941" alt="RandomPlusparaell" src="https://github.com/user-attachments/assets/1f8fbb69-2239-4955-88bc-ad2bdd88fd3a" />
 # RandomPlus 谱面抽取工具
 
 轻量的 maimai 赛用选曲器，基于 React + TypeScript，适用于直播或本地娱乐。功能包括：抽卡式随机选歌、多曲库管理、等级/难度筛选、曲库编辑、选定曲 OBS 展示和抽曲OBS展示。
