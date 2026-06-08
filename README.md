@@ -1,6 +1,6 @@
 # RandomPlus 谱面抽取工具
 
-轻量的 maimai 随机选曲器，基于 React + TypeScript，适用于直播或本地娱乐。功能包括：抽卡式随机选歌、多曲库管理、等级/难度筛选、曲库编辑与 OBS 展示。
+轻量的 maimai 赛用选曲器，基于 React + TypeScript，适用于直播或本地娱乐。功能包括：抽卡式随机选歌、多曲库管理、等级/难度筛选、曲库编辑、选定曲 OBS 展示和抽曲OBS展示。
 
 ---
 
@@ -10,6 +10,7 @@
 - 真随机：使用 Web Crypto API 获取高质量随机数
 - 难度筛选：按难度类型（BASIC / ADVANCED / EXPERT / MASTER / Re:MASTER）、等级区间及 `+` 难度筛选
 - 多曲库：导入并管理多个 JSON 曲库，支持跨库抽卡
+- 可编辑玩家名的指定选曲功能
 - OBS 展示：独立 `/obs` 页面，可在 OBS 中作为浏览器源使用
 - 同步服务：内置 WebSocket 服务（`sync-server.js`）支持局域网/多标签页同步
 
