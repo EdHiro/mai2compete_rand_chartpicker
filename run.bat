@@ -1,1 +1,1 @@
-start cmd /k npm run sync & npx vite --host 
+start cmd /k npm run sync &start cmd /k npm run ws-server & npx vite --host 

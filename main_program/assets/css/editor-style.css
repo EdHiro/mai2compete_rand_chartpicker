@@ -1,0 +1,169 @@
+.codex-editor {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+/* 工具栏样式优化 */
+.ce-toolbar__content {
+    max-width: 100%;
+    margin: 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--editor-toolbar-bg, rgba(255, 255, 255, 0.96));
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ce-toolbar__plus,
+.ce-toolbar__settings-btn {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: var(--editor-button-bg, #f0f0f0);
+    color: var(--editor-button-color, #333);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ce-inline-tool-bgcolor {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: var(--editor-button-bg, #f0f0f0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ce-inline-tool-bgcolor__input {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.ce-inline-tool-bgcolor:hover {
+    transform: translateY(-2px);
+    background: var(--editor-button-hover-bg, #e0e0e0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ce-toolbar__plus:hover,
+.ce-toolbar__settings-btn:hover {
+    transform: translateY(-2px);
+    background: var(--editor-button-hover-bg, #e0e0e0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 编辑区域样式优化 */
+.ce-block__content {
+    max-width: 100%;
+    margin: 0;
+    padding: 8px 0;
+}
+
+.ce-paragraph {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--editor-text-color, #333);
+}
+
+/* 代码块样式 */
+.ce-code__textarea {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    padding: 15px;
+    border-radius: 6px;
+    background: var(--editor-code-bg, #f8f9fa);
+    border: 1px solid var(--editor-code-border, #e9ecef);
+}
+
+/* 引用块样式 */
+.cdx-quote {
+    padding: 15px;
+    border-left: 4px solid var(--editor-quote-border, #6c757d);
+    background: var(--editor-quote-bg, #f8f9fa);
+    border-radius: 0 6px 6px 0;
+}
+
+/* 表格样式 */
+.tc-table {
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--editor-table-border, #e9ecef);
+}
+
+.tc-table td {
+    padding: 10px;
+    border: 1px solid var(--editor-table-border, #e9ecef);
+}
+
+/* 图片上传区域样式 */
+.image-tool__image-preloader {
+    border-radius: 8px;
+    background: var(--editor-image-preloader-bg, #f8f9fa);
+    border: 2px dashed var(--editor-image-preloader-border, #dee2e6);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .codex-editor {
+        padding: 15px;
+    }
+
+    .ce-toolbar__content {
+        padding: 6px;
+    }
+
+    .ce-block__content {
+        padding: 6px 0;
+    }
+
+    .ce-toolbar__plus,
+    .ce-toolbar__settings-btn {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* 暗色主题变量 */
+.dark-theme {
+    --editor-toolbar-bg: rgba(45, 45, 45, 0.93);
+    --editor-button-bg: #3d3d3d;
+    --editor-button-color: #e0e0e0;
+    --editor-button-hover-bg: #4d4d4d;
+    --editor-text-color: #e0e0e0;
+    --editor-code-bg: #2d2d2d;
+    --editor-code-border: #3d3d3d;
+    --editor-quote-border: #6c757d;
+    --editor-quote-bg: #2d2d2d;
+    --editor-table-border: #3d3d3d;
+    --editor-image-preloader-bg: #2d2d2d;
+    --editor-image-preloader-border: #3d3d3d;
+}
+
+/* 亮色主题变量 */
+.light-theme {
+    --editor-toolbar-bg: rgba(255, 255, 255, 0.93);
+    --editor-button-bg: #f0f0f0;
+    --editor-button-color: #333;
+    --editor-button-hover-bg: #e0e0e0;
+    --editor-text-color: #333;
+    --editor-code-bg: #f8f9fa;
+    --editor-code-border: #e9ecef;
+    --editor-quote-border: #6c757d;
+    --editor-quote-bg: #f8f9fa;
+    --editor-table-border: #e9ecef;
+    --editor-image-preloader-bg: #f8f9fa;
+    --editor-image-preloader-border: #dee2e6;
+}

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Music } from 'lucide-react'
-import { Song, Difficulty, useSongStore } from '@/store/songStore'
+import { Song, Difficulty } from '@/store/songStore'
 import SongCardContent from '@/components/SongCardContent'
 import { subscribeSyncEvents, type SyncEvent, getConnectionStatus } from '@/utils/tabSync'
 
@@ -31,18 +31,6 @@ const getCardBgImage = (difficulty: Difficulty): string => {
 }
 
 const ENTRANCE_BG = '/levbg/Sprite/UI_TST_MBase_DMY.png'
-
-// 根据难度获取稀有度颜色
-const getRarityColor = (difficulty: Difficulty): string => {
-  switch (difficulty) {
-    case 'BASIC': return '#22c55e'
-    case 'ADVANCED': return '#f59e0b'
-    case 'EXPERT': return '#ec4899'
-    case 'MASTER': return '#a855f7'
-    case 'Re:MASTER': return '#e89effff'
-    default: return '#a855f7'
-  }
-}
 
 const DrawCard = function ({ song, index, showFront, animationState }: DrawCardProps) {
   const isExiting = animationState === 'exit'
@@ -90,7 +78,11 @@ const DrawCard = function ({ song, index, showFront, animationState }: DrawCardP
             </div>
           </div>
 
-          <div className="absolute inset-0 backface-hidden rotate-y-180">
+          <div
+            className={`absolute inset-0 backface-hidden rotate-y-180 transition-opacity duration-100 ${
+              showFront ? 'opacity-100 visible' : 'opacity-0 invisible'
+            }`}
+          >
             <SongCardContent song={song} className="w-full h-full" />
           </div>
         </div>
@@ -127,11 +119,10 @@ export default function OBSDisplay() {
   const [displaySongs, setDisplaySongs] = useState<MultiSong[]>([])
   const [exitingSongs, setExitingSongs] = useState<MultiSong[]>([])
   const [exitKey, setExitKey] = useState(0)
-  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([])
-
   // Refs to avoid stale closures in event handlers
   const displaySongsRef = useRef<MultiSong[]>([])
   const phaseRef = useRef(phase)
+  const lastEventTimestampRef = useRef<number>(0)
 
   useEffect(() => {
     phaseRef.current = phase
@@ -141,105 +132,69 @@ export default function OBSDisplay() {
     displaySongsRef.current = displaySongs
   }, [displaySongs])
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      timeoutRefs.current.forEach(clearTimeout)
-    }
-  }, [])
-
   // Listen for sync events from main tab
   useEffect(() => {
-    const handleDrawEvent = (songs: MultiSong[]) => {
-      // Use ref to get latest state
+    const effectTimeouts: ReturnType<typeof setTimeout>[] = []
+
+    const scheduleTimeout = (callback: () => void, delay: number) => {
+      const id = setTimeout(callback, delay)
+      effectTimeouts.push(id)
+    }
+
+    const playEntrance = (songs: MultiSong[]) => {
+      setDisplaySongs(songs)
+      setExitKey(prev => prev + 1)
+      setRevealedCount(0)
+      setPhase('building')
+
+      scheduleTimeout(() => setPhase('revealing'), 250)
+
+      songs.forEach((_, index) => {
+        const delay = 500 + index * 300
+        scheduleTimeout(() => {
+          setRevealedCount(index + 1)
+          if (index === songs.length - 1) {
+            scheduleTimeout(() => setPhase('done'), 350)
+          }
+        }, delay)
+      })
+    }
+
+    const playExitThen = (currentSongs: MultiSong[], onExited: () => void) => {
+      setExitingSongs(currentSongs)
+      setPhase('exiting')
+      setRevealedCount(0)
+
+      const lastCardDelay = currentSongs.length * 120
+      const exitDuration = 600 + lastCardDelay
+
+      scheduleTimeout(() => {
+        setExitingSongs([])
+        onExited()
+      }, exitDuration)
+    }
+
+    const startRevealSequence = (songs: MultiSong[]) => {
       const currentSongs = displaySongsRef.current
       const currentPhase = phaseRef.current
 
-      // If already exiting, ignore the new event
       if (currentPhase === 'exiting') return
 
-      // If there are existing songs, play exit animation first
       if (currentSongs.length > 0) {
-        setExitingSongs(currentSongs)
-        setPhase('exiting')
-        setRevealedCount(0)
-
-        const lastCardDelay = currentSongs.length * 120
-        const exitDuration = 600 + lastCardDelay
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setExitingSongs([])
-            // Now play entrance with new songs
-            setDisplaySongs(songs)
-            setExitKey(prev => prev + 1)
-            setRevealedCount(0)
-            setPhase('building')
-
-            timeoutRefs.current.push(
-              setTimeout(() => {
-                setPhase('revealing')
-              }, 250)
-            )
-
-            songs.forEach((_, index) => {
-              const delay = 500 + index * 300
-              timeoutRefs.current.push(
-                setTimeout(() => {
-                  setRevealedCount(index + 1)
-                  if (index === songs.length - 1) {
-                    setTimeout(() => setPhase('done'), 350)
-                  }
-                }, delay)
-              )
-            })
-          }, exitDuration)
-        )
+        playExitThen(currentSongs, () => playEntrance(songs))
       } else {
-        // First draw, just animate in
-        setDisplaySongs(songs)
-        setExitKey(prev => prev + 1)
-        setRevealedCount(0)
-        setPhase('building')
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setPhase('revealing')
-          }, 250)
-        )
-
-        songs.forEach((_, index) => {
-          const delay = 500 + index * 300
-          timeoutRefs.current.push(
-            setTimeout(() => {
-              setRevealedCount(index + 1)
-              if (index === songs.length - 1) {
-                setTimeout(() => setPhase('done'), 350)
-              }
-            }, delay)
-          )
-        })
+        playEntrance(songs)
       }
     }
 
     const handleClearEvent = () => {
       const currentSongs = displaySongsRef.current
-      if (currentSongs.length > 0) {
-        setExitingSongs(currentSongs)
-        setPhase('exiting')
-        setRevealedCount(0)
+      if (currentSongs.length === 0) return
 
-        const lastCardDelay = currentSongs.length * 120
-        const exitDuration = 600 + lastCardDelay
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setExitingSongs([])
-            setDisplaySongs([])
-            setPhase('idle')
-          }, exitDuration)
-        )
-      }
+      playExitThen(currentSongs, () => {
+        setDisplaySongs([])
+        setPhase('idle')
+      })
     }
 
     const handleImportEvent = () => {
@@ -250,167 +205,41 @@ export default function OBSDisplay() {
       setRevealedCount(0)
     }
 
-    const handleSelectEvent = (songs: MultiSong[]) => {
-      // 指定选曲：使用与抽卡相同的入场+翻转动画
-      const currentSongs = displaySongsRef.current
-      const currentPhase = phaseRef.current
-
-      if (currentPhase === 'exiting') return
-
-      if (currentSongs.length > 0) {
-        setExitingSongs(currentSongs)
-        setPhase('exiting')
-        setRevealedCount(0)
-
-        const lastCardDelay = currentSongs.length * 120
-        const exitDuration = 600 + lastCardDelay
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setExitingSongs([])
-            setDisplaySongs(songs)
-            setExitKey(prev => prev + 1)
-            setRevealedCount(0)
-            setPhase('building')
-
-            timeoutRefs.current.push(
-              setTimeout(() => {
-                setPhase('revealing')
-              }, 250)
-            )
-
-            songs.forEach((_, index) => {
-              const delay = 500 + index * 300
-              timeoutRefs.current.push(
-                setTimeout(() => {
-                  setRevealedCount(index + 1)
-                  if (index === songs.length - 1) {
-                    setTimeout(() => setPhase('done'), 350)
-                  }
-                }, delay)
-              )
-            })
-          }, exitDuration)
-        )
-      } else {
-        setDisplaySongs(songs)
-        setExitKey(prev => prev + 1)
-        setRevealedCount(0)
-        setPhase('building')
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setPhase('revealing')
-          }, 250)
-        )
-
-        songs.forEach((_, index) => {
-          const delay = 500 + index * 300
-          timeoutRefs.current.push(
-            setTimeout(() => {
-              setRevealedCount(index + 1)
-              if (index === songs.length - 1) {
-                setTimeout(() => setPhase('done'), 350)
-              }
-            }, delay)
-          )
-        })
-      }
-    }
-
     const handleMultiSelectEvent = (selections: { playerId: string; playerName: string; song: MultiSong }[]) => {
-      // 多玩家选曲：使用与抽卡相同的入场+翻转动画，逐张揭示
-      const currentSongs = displaySongsRef.current
-      const currentPhase = phaseRef.current
-
-      if (currentPhase === 'exiting') return
-
-      // 将多玩家选择转换为展示用的歌曲数组（带玩家信息）
       const multiSongs = selections.map(s => ({
         ...s.song,
         _playerName: s.playerName,
         _playerId: s.playerId,
       })) as MultiSong[]
 
-      if (currentSongs.length > 0) {
-        setExitingSongs(currentSongs)
-        setPhase('exiting')
-        setRevealedCount(0)
-
-        const lastCardDelay = currentSongs.length * 120
-        const exitDuration = 600 + lastCardDelay
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setExitingSongs([])
-            setDisplaySongs(multiSongs)
-            setExitKey(prev => prev + 1)
-            setRevealedCount(0)
-            setPhase('building')
-
-            timeoutRefs.current.push(
-              setTimeout(() => {
-                setPhase('revealing')
-              }, 250)
-            )
-
-            multiSongs.forEach((_, index) => {
-              const delay = 500 + index * 300
-              timeoutRefs.current.push(
-                setTimeout(() => {
-                  setRevealedCount(index + 1)
-                  if (index === multiSongs.length - 1) {
-                    setTimeout(() => setPhase('done'), 350)
-                  }
-                }, delay)
-              )
-            })
-          }, exitDuration)
-        )
-      } else {
-        setDisplaySongs(multiSongs)
-        setExitKey(prev => prev + 1)
-        setRevealedCount(0)
-        setPhase('building')
-
-        timeoutRefs.current.push(
-          setTimeout(() => {
-            setPhase('revealing')
-          }, 250)
-        )
-
-        multiSongs.forEach((_, index) => {
-          const delay = 500 + index * 300
-          timeoutRefs.current.push(
-            setTimeout(() => {
-              setRevealedCount(index + 1)
-              if (index === multiSongs.length - 1) {
-                setTimeout(() => setPhase('done'), 350)
-              }
-            }, delay)
-          )
-        })
-      }
+      startRevealSequence(multiSongs)
     }
 
     const unsubscribe = subscribeSyncEvents((event: SyncEvent) => {
+      // 同一事件可能通过 localStorage 和 WebSocket 两个通道同时送达，按时间戳去重
+      if (event.timestamp === lastEventTimestampRef.current) return
+      lastEventTimestampRef.current = event.timestamp
+
       if (event.type === 'draw') {
         const payload = event.payload as { songs: Song[] }
-        handleDrawEvent(payload.songs)
+        startRevealSequence(payload.songs)
       } else if (event.type === 'clear') {
         handleClearEvent()
       } else if (event.type === 'import') {
         handleImportEvent()
       } else if (event.type === 'select') {
         const payload = event.payload as { songs: MultiSong[] }
-        handleSelectEvent(payload.songs)
+        startRevealSequence(payload.songs)
       } else if (event.type === 'multiSelect') {
         const payload = event.payload as { songs: { playerId: string; playerName: string; song: MultiSong }[] }
         handleMultiSelectEvent(payload.songs)
       }
     })
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      effectTimeouts.forEach(clearTimeout)
+    }
   }, [])
 
   const songsToShow = exitingSongs.length > 0 ? exitingSongs : displaySongs
@@ -431,23 +260,43 @@ export default function OBSDisplay() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-950 py-12 px-4 relative overflow-hidden flex flex-col items-center justify-center">
-      {/* Background ambient effect */}
+    <div className="min-h-screen bg-dark-bg py-12 px-4 relative overflow-hidden flex flex-col items-center justify-center">
+      {/* Background ambient effect - Neon Arcade / Stage Performance */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-radial from-blue-900/10 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-radial from-violet-700/15 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-radial from-amber-600/10 via-transparent to-transparent" style={{ backgroundPosition: '30% 80%' }} />
+        <div className="absolute inset-0 hero-grid opacity-30 [background-size:48px_48px]" />
       </div>
 
       {/* Connection status */}
-      <div className="relative z-10 text-center mb-6">
-        <div className="inline-flex items-center gap-4 px-4 py-3.5 rounded-full text-xs font-bold tracking-wider bg-white/5 border border-white/10">
+      <div className="relative z-10 text-center mb-8">
+        <div className="inline-flex items-center gap-4 px-6 py-4 rounded-full text-sm font-bold tracking-wider glass-panel border-dark-border/40">
+          <span className="title-gradient font-orbitron">OBS DISPLAY</span>
+          <span className="w-px h-5 bg-dark-border/50" />
           {(() => {
             const status = getConnectionStatus()
             if (status === 'connected') {
-              return <span className="text-green-400">● 多设备已连接 - 主页面控制</span>
+              return (
+                <span className="inline-flex items-center gap-2 font-rajdhani text-green-400">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-status-dot" />
+                  <span className="font-bold">多设备已连接 · 主页面控制</span>
+                </span>
+              )
             } else if (status === 'local-only') {
-              return <span className="text-yellow-400">● 仅同浏览器联动 (启动 sync-server 以支持多设备)</span>
+              return (
+                <span className="inline-flex items-center gap-2 font-rajdhani text-yellow-400">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" />
+                  <span className="font-bold">仅同浏览器联动 (启动 sync-server 以支持多设备)</span>
+                </span>
+              )
             }
-            return <span className="text-yellow-400">○ 连接中...</span>
+            return (
+              <span className="inline-flex items-center gap-2 font-rajdhani text-yellow-400">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" />
+                <span className="font-bold">连接中...</span>
+              </span>
+            )
           })()}
         </div>
       </div>

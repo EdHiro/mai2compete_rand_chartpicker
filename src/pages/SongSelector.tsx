@@ -1,20 +1,41 @@
-import { useState, useMemo, useRef, useEffect, memo } from 'react'
-import { useSongStore, type Song, type PlayerSelection } from '@/store/songStore'
-import { broadcastSyncEvent } from '@/utils/tabSync'
-import { Search, Eye, Send, Disc3, UserPlus, UserMinus, Users, Check, SlidersHorizontal, Ban } from 'lucide-react'
+import { useState, useMemo, useRef, useEffect, memo, useCallback } from 'react'
+import { useSongStore, type Song, type PlayerSelection, type Difficulty } from '@/store/songStore'
+import { useTournamentStore, type TournamentStage } from '@/store/tournamentStore'
+import { broadcastSyncEvent, subscribeSyncEvents, getConnectionStatus } from '@/utils/tabSync'
+import { Search, Eye, Send, Disc3, UserPlus, UserMinus, Users, Check, SlidersHorizontal, Ban, Trophy, Shuffle, X, ChevronLeft, ChevronRight, Command, Plus, Minus, Database, QrCode, Smartphone, Zap, RotateCcw } from 'lucide-react'
 
 // 分页大小
 const PAGE_SIZE = 48
 
-const SelectorSongCard = memo(({ song, isSelected, onClick }: { song: Song; isSelected: boolean; onClick: () => void }) => {
+// 难度筛选配置
+const DIFFICULTY_CONFIG: { value: Difficulty | 'ALL'; label: string; gradient: string; border: string }[] = [
+  { value: 'ALL', label: '全部', gradient: 'from-gray-500 to-gray-600', border: 'border-gray-400/50' },
+  { value: 'BASIC', label: 'BASIC', gradient: 'from-green-500 to-emerald-600', border: 'border-green-400/50' },
+  { value: 'ADVANCED', label: 'ADV', gradient: 'from-yellow-500 to-amber-600', border: 'border-yellow-400/50' },
+  { value: 'EXPERT', label: 'EXP', gradient: 'from-pink-500 to-rose-600', border: 'border-pink-400/50' },
+  { value: 'MASTER', label: 'MST', gradient: 'from-purple-500 to-purple-700', border: 'border-purple-400/50' },
+  { value: 'Re:MASTER', label: 'Re:', gradient: 'from-amber-400 to-orange-500', border: 'border-amber-400/50' },
+]
+
+// 玩家颜色配置（用于多玩家模式标识）
+const PLAYER_COLORS = [
+  { bg: 'from-blue-500 to-blue-600', border: 'border-blue-400/50', text: 'text-blue-200', glow: 'rgba(59,130,246,0.3)' },
+  { bg: 'from-green-500 to-green-600', border: 'border-green-400/50', text: 'text-green-200', glow: 'rgba(34,197,94,0.3)' },
+  { bg: 'from-purple-500 to-purple-600', border: 'border-purple-400/50', text: 'text-purple-200', glow: 'rgba(139,92,246,0.3)' },
+  { bg: 'from-amber-500 to-orange-500', border: 'border-amber-400/50', text: 'text-amber-200', glow: 'rgba(245,158,11,0.3)' },
+  { bg: 'from-pink-500 to-rose-500', border: 'border-pink-400/50', text: 'text-pink-200', glow: 'rgba(236,72,153,0.3)' },
+  { bg: 'from-cyan-500 to-teal-500', border: 'border-cyan-400/50', text: 'text-cyan-200', glow: 'rgba(6,182,212,0.3)' },
+]
+
+const SelectorSongCard = memo(({ song, isSelected, isFocused, onClick }: { song: Song; isSelected: boolean; isFocused?: boolean; onClick: () => void }) => {
   const getDiffColor = (diff: string) => {
     switch (diff) {
-      case 'BASIC': return 'from-green-500 to-emerald-600 border-green-400'
-      case 'ADVANCED': return 'from-yellow-600 to-yellow-400 border-yellow-400'
-      case 'EXPERT': return 'from-pink-500 to-red-600 border-red-400'
-      case 'MASTER': return 'from-purple-600 to-purple-800 border-purple-400'
-      case 'Re:MASTER': return 'from-purple-100 to-purple-500 border-purple-400'
-      default: return 'from-gray-500 to-gray-600 border-gray-400'
+      case 'BASIC': return 'from-green-500/80 to-emerald-600/80 border-green-400/50'
+      case 'ADVANCED': return 'from-yellow-500/80 to-amber-600/80 border-yellow-400/50'
+      case 'EXPERT': return 'from-pink-500/80 to-rose-600/80 border-pink-400/50'
+      case 'MASTER': return 'from-purple-500/80 to-purple-700/80 border-purple-400/50'
+      case 'Re:MASTER': return 'from-amber-400/80 to-orange-500/80 border-amber-400/50'
+      default: return 'from-gray-500/80 to-gray-600/80 border-gray-400/50'
     }
   }
 
@@ -23,21 +44,25 @@ const SelectorSongCard = memo(({ song, isSelected, onClick }: { song: Song; isSe
       onClick={onClick}
       className={`relative w-full text-left rounded-xl overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
         isSelected
-          ? 'ring-2 ring-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.4)] border-yellow-400'
-          : 'border-transparent hover:border-white/30'
+          ? 'ring-2 ring-amber-400 shadow-[0_0_24px_rgba(250,204,21,0.3)] border-amber-400/50'
+          : isFocused
+            ? 'ring-2 ring-white/40 border-white/20 scale-[1.01] shadow-[0_0_16px_rgba(255,255,255,0.15)]'
+            : 'border-transparent hover:border-white/20'
       }`}
       style={{ height: 340 }}
     >
+      {/* Tiny top gradient bar - premium accent */}
+      <div className="absolute top-[2px] left-[2px] right-[2px] h-[3px] rounded-t-[8px] bg-gradient-to-r from-blue-500/80 via-purple-500/70 to-pink-500/80 z-20 pointer-events-none" />
       <img
         src={song.cover}
         alt={song.name}
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
       {/* Chart type badge */}
-      <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 text-[10px] font-bold text-white border border-white/20">
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/50 backdrop-blur-sm text-[10px] font-bold text-white border border-white/10">
         {song.chartType === 'dx' ? 'DX' : 'STD'}
       </div>
 
@@ -47,7 +72,7 @@ const SelectorSongCard = memo(({ song, isSelected, onClick }: { song: Song; isSe
       </div>
 
       {/* Level badge */}
-      <div className="absolute top-8 left-2 px-2 py-0.5 rounded text-[10px] font-bold text-white bg-black/60 border border-white/20">
+      <div className="absolute top-8 left-2 px-2 py-0.5 rounded text-[10px] font-bold text-white bg-black/50 backdrop-blur-sm border border-white/10">
         Lv.{song.level}{song.isPlus ? '+' : ''}
       </div>
 
@@ -56,17 +81,24 @@ const SelectorSongCard = memo(({ song, isSelected, onClick }: { song: Song; isSe
         <p className="text-white text-sm font-bold leading-tight line-clamp-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
           {song.name}
         </p>
-        <p className="text-white/60 text-[10px] mt-1 truncate">
+        <p className="text-white/50 text-[10px] mt-1 truncate">
           {song.author}
         </p>
       </div>
 
       {/* Selected overlay */}
       {isSelected && (
-        <div className="absolute inset-0 bg-yellow-400/10 flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg">
-            <Eye size={20} className="text-yellow-900" />
+        <div className="absolute inset-0 bg-amber-400/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-amber-400/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+            <Eye size={20} className="text-amber-900" />
           </div>
+        </div>
+      )}
+      {/* Keyboard focus hint */}
+      {isFocused && !isSelected && (
+        <div className="absolute bottom-14 right-2 z-20 flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/60 text-white/60 text-[9px] font-mono">
+          <Command size={8} />
+          <span>↵</span>
         </div>
       )}
     </button>
@@ -77,9 +109,11 @@ SelectorSongCard.displayName = 'SelectorSongCard'
 
 interface SongSelectorProps {
   onSwitchPage?: (target: 'home' | 'selector') => void
+  initialMultiMode?: boolean
+  initialPlayerName?: string | null
 }
 
-export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
+export default function SongSelector({ onSwitchPage, initialMultiMode = false, initialPlayerName = null }: SongSelectorProps) {
   const songs = useSongStore((state) => state.songs)
   const songPools = useSongStore((state) => state.songPools)
   const activePoolId = useSongStore((state) => state.activePoolId)
@@ -95,6 +129,7 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
   const loaderRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   // 多玩家模式
   const [multiMode, setMultiMode] = useState(false)
@@ -102,8 +137,42 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
   const [sentToOBS, setSentToOBS] = useState(false)
   const [newPlayerName, setNewPlayerName] = useState('')
 
+  // 根据 URL 参数初始化多人模式
+  useEffect(() => {
+    if (initialMultiMode) {
+      setMultiMode(true);
+      // 如果 URL 里带了 player_name，则尝试在 playerSelections 中找到并激活
+      if (initialPlayerName && playerSelections.length > 0) {
+        const existing = playerSelections.find(p => p.playerName === initialPlayerName);
+        if (existing) {
+          setActivePlayerId(existing.playerId);
+        }
+      }
+      // 如果还没有任何玩家，至少添加一个占位
+      if (playerSelections.length === 0) {
+        addPlayer(initialPlayerName || '玩家1');
+      }
+    }
+  }, [initialMultiMode, initialPlayerName]);
+
   // 单人模式选中的谱面列表（最多4张）
   const [singleSelectedSongs, setSingleSelectedSongs] = useState<Song[]>([])
+
+  // 键盘导航状态
+  const [focusedIndex, setFocusedIndex] = useState(-1)
+  const [columnsCount, setColumnsCount] = useState(2) // 响应式列数
+
+  // 难度快捷筛选
+  const [quickDiffFilter, setQuickDiffFilter] = useState<Difficulty | 'ALL'>('ALL')
+
+  // Tournament sync target
+  const tournamentCurrentStage = useTournamentStore((state) => state.currentStage)
+  const tournamentStages = useTournamentStore((state) => state.stages)
+  const isTournamentStarted = useTournamentStore((state) => state.isTournamentStarted)
+  const getStagePlayers = useTournamentStore((state) => state.getStagePlayers)
+  const [sendTargetStage, setSendTargetStage] = useState<TournamentStage | ''>('')
+  const [showTournamentSync, setShowTournamentSync] = useState(false)
+  const [showQRCode, setShowQRCode] = useState(false)
 
   // 筛选面板
   const [showFilters, setShowFilters] = useState(false)
@@ -146,7 +215,7 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
     return source
   }, [songs, songPools, activePoolId, excludedPoolIds])
 
-  // 搜索过滤 + 拟合定数过滤
+  // 搜索过滤 + 难度快捷筛选 + 拟合定数过滤
   const filteredSongs = useMemo(() => {
     let result = activeSongs
     if (searchQuery.trim()) {
@@ -157,12 +226,16 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
         song.genre.toLowerCase().includes(query)
       )
     }
+    // 难度快捷筛选
+    if (quickDiffFilter !== 'ALL') {
+      result = result.filter(song => song.difficulty === quickDiffFilter)
+    }
     // 拟合定数过滤
     result = result.filter(song =>
       song.levelValue >= minLevelValue && song.levelValue <= maxLevelValue
     )
     return result
-  }, [activeSongs, searchQuery, minLevelValue, maxLevelValue])
+  }, [activeSongs, searchQuery, quickDiffFilter, minLevelValue, maxLevelValue])
 
   // 分页展示
   const visibleSongs = useMemo(
@@ -192,7 +265,23 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
   // 切换曲库或搜索时重置分页
   useEffect(() => {
     setDisplayCount(PAGE_SIZE)
-  }, [activePoolId, searchQuery, minLevelValue, maxLevelValue])
+    setFocusedIndex(-1)
+  }, [activePoolId, searchQuery, minLevelValue, maxLevelValue, quickDiffFilter])
+
+  // 计算网格列数（用于键盘导航）
+  useEffect(() => {
+    const updateColumns = () => {
+      const width = window.innerWidth
+      if (width >= 1280) setColumnsCount(6)
+      else if (width >= 1024) setColumnsCount(5)
+      else if (width >= 768) setColumnsCount(4)
+      else if (width >= 640) setColumnsCount(3)
+      else setColumnsCount(2)
+    }
+    updateColumns()
+    window.addEventListener('resize', updateColumns)
+    return () => window.removeEventListener('resize', updateColumns)
+  }, [])
 
   // 判断某张谱面是否被当前激活玩家选中
   const isSongSelectedByActivePlayer = (song: Song) => {
@@ -251,44 +340,300 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
     setSentToOBS(true)
   }
 
+  const handleSendToTournament = (sourceSongs: Song[]) => {
+    if (sourceSongs.length === 0) return
+    const targetStage = sendTargetStage || tournamentCurrentStage
+    if (!targetStage) return
+
+    const stageData = tournamentStages[targetStage]
+    const groupId = stageData?.groups?.[0]?.id
+
+    const payloadSongs = sourceSongs.map((song, idx) => ({
+      song,
+      label: `自选${idx + 1}`,
+    }))
+
+    broadcastSyncEvent('stageSongs', {
+      stage: targetStage,
+      groupId,
+      songs: payloadSongs,
+    })
+  }
+
   const handleClearSelections = () => {
     const cleared = playerSelections.map(ps => ({ ...ps, song: null }))
     setPlayerSelections(cleared)
     setSentToOBS(false)
   }
 
-  // 已选中的谱面数量
+  // 随机从当前筛选结果中选一首
+  const handleRandomPick = () => {
+    if (filteredSongs.length === 0) return
+    const randomSong = filteredSongs[Math.floor(Math.random() * filteredSongs.length)]
+    handleSelectSong(randomSong)
+  }
+
+  // 从单人模式选中列表中随机挑选指定数量
+  const handleRandomFill = (count: number) => {
+    if (filteredSongs.length === 0) return
+    const shuffled = [...filteredSongs].sort(() => Math.random() - 0.5)
+    const picks = shuffled.slice(0, count)
+    setSingleSelectedSongs(picks)
+    setSentToOBS(false)
+  }
+
+  // ============= 赛事选手同步 & 多设备联动 =============
+
+  // 1. 从当前赛事阶段同步选手到多玩家模式
+  const handleSyncPlayersFromTournament = useCallback((targetStage?: TournamentStage) => {
+    const stage = targetStage || tournamentCurrentStage
+    if (!stage) return
+    const players = getStagePlayers(stage)
+    if (players.length === 0) return
+
+    // 清除旧的 playerSelections，用赛事选手替换
+    const newSelections: PlayerSelection[] = players.map((player, idx) => ({
+      playerId: `tournament-${stage}-${player.id || idx}`,
+      playerName: player.name,
+      song: null,
+    }))
+    setPlayerSelections(newSelections)
+    setMultiMode(true)
+    setActivePlayerId(newSelections[0]?.playerId || null)
+    setSingleSelectedSongs([])
+
+    // 广播到其他设备：告诉它们把这些玩家设置为当前多玩家模式
+    broadcastSyncEvent('syncPlayers', {
+      players: newSelections,
+      sourceStage: stage,
+    })
+  }, [tournamentCurrentStage, getStagePlayers, setPlayerSelections])
+
+  // 2. 多设备联动：接收其他设备的同步消息
+  useEffect(() => {
+    const unsubscribe = subscribeSyncEvents((event) => {
+      // 其他设备从赛事同步了选手 -> 本地同步
+      if (event.type === 'syncPlayers' && event.payload.players) {
+        const players = event.payload.players as PlayerSelection[]
+        setPlayerSelections(players)
+        setMultiMode(true)
+        if (players.length > 0 && !activePlayerId) {
+          setActivePlayerId(players[0].playerId)
+        }
+        setSingleSelectedSongs([])
+      }
+
+      // 其他设备更新了玩家选曲 -> 本地同步
+      if (event.type === 'playerSelections' && event.payload.selections) {
+        const selections = event.payload.selections as PlayerSelection[]
+        // 用传入的内容更新本地 playerSelections
+        setPlayerSelections(selections)
+        setSentToOBS(false)
+      }
+    })
+    return unsubscribe
+  }, [setPlayerSelections, activePlayerId])
+
+  // 3. 当玩家选曲发生变化时，广播到其他设备
+  const broadcastPlayerSelections = useCallback(() => {
+    if (playerSelections.length === 0) return
+    broadcastSyncEvent('playerSelections', {
+      selections: playerSelections,
+    })
+  }, [playerSelections])
+
+  // 当 playerSelections 变更时自动广播（避免自己发给自己的循环）
+  const lastBroadcastRef = useRef<string>('')
+  useEffect(() => {
+    if (!multiMode) return
+    const currentSnapshot = JSON.stringify(playerSelections)
+    if (currentSnapshot === lastBroadcastRef.current) return
+    lastBroadcastRef.current = currentSnapshot
+    // 轻微延迟以避免频繁广播
+    const timer = setTimeout(() => {
+      broadcastPlayerSelections()
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [playerSelections, multiMode, broadcastPlayerSelections])
+
+  // 曲库选择下拉
+  const [showPoolDropdown, setShowPoolDropdown] = useState(false)
+  const poolDropdownRef = useRef<HTMLDivElement>(null)
+
+  // 点击外部关闭曲库下拉
+  useEffect(() => {
+    if (!showPoolDropdown) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (poolDropdownRef.current && !poolDropdownRef.current.contains(e.target as Node)) {
+        setShowPoolDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showPoolDropdown])
+
+  // 获取当前曲库的显示名称
+  const currentPoolLabel = useMemo(() => {
+    if (activePoolId === 'all') return '全部曲库'
+    if (activePoolId === 'main') return '主库'
+    const pool = songPools.find(p => p.id === activePoolId)
+    return pool?.name || '主库'
+  }, [activePoolId, songPools])
+
+  // 构建曲库选项列表
+  const poolOptions = useMemo(() => {
+    const options: { id: string; label: string; count: number }[] = []
+    if (songs.length > 0) {
+      options.push({ id: 'main', label: '主库', count: songs.length })
+    }
+    for (const pool of songPools) {
+      options.push({ id: pool.id, label: pool.name, count: pool.songs.length })
+    }
+    // 总曲库选项（只有当有多个曲库时才显示）
+    const totalAvailable = options.reduce((sum, o) => sum + o.count, 0)
+    if (options.length > 1) {
+      options.unshift({ id: 'all', label: '全部曲库', count: totalAvailable })
+    }
+    return options
+  }, [songs, songPools])
+
+  const handleSelectPool = (poolId: string) => {
+    setActivePoolId(poolId)
+    setShowPoolDropdown(false)
+  }
+
+  // 多玩家模式下已选谱面数
   const selectedCount = playerSelections.filter(ps => ps.song !== null).length
 
+  // 键盘导航事件监听（在所有 handlers 定义之后）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (filteredSongs.length === 0) return
+      const total = visibleSongs.length
+      if (total === 0) return
+      const target = e.target as HTMLElement
+      // 跳过输入框内的按键
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setFocusedIndex(prev => Math.min(prev + 1, total - 1))
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setFocusedIndex(prev => Math.max(prev - 1, 0))
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setFocusedIndex(prev => Math.min(prev + columnsCount, total - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setFocusedIndex(prev => Math.max(prev - columnsCount, 0))
+      } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < total) {
+        e.preventDefault()
+        handleSelectSong(visibleSongs[focusedIndex])
+      } else if (e.key === 'Escape') {
+        setFocusedIndex(-1)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [filteredSongs, visibleSongs, focusedIndex, columnsCount])
+
   return (
-    <div className="min-h-screen bg-dark-bg flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-gradient-to-b from-blue-700 to-dark-bg border-b-4 border-blue-500 shadow-lg">
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 via-yellow-500 to-pink-500" />
+      <header className="sticky top-0 z-50 bg-dark-bg/95 backdrop-blur-md border-b border-dark-border/50">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500" />
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="font-orbitron font-black text-xl sm:text-2xl text-white drop-shadow-lg">
-              指定谱面
-            </h1>
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="title-gradient text-xl sm:text-2xl drop-shadow-lg">
+                  指定谱面
+                </h1>
+                <div className="font-rajdhani text-[11px] sm:text-xs tracking-[0.3em] uppercase text-white/40 mt-1">
+                  SELECT YOUR CHARTS · 指定选曲
+                </div>
+              </div>
+              {/* 曲库选择器 */}
+              <div className="relative" ref={poolDropdownRef}>
+                <button
+                  onClick={() => poolOptions.length > 1 && setShowPoolDropdown(!showPoolDropdown)}
+                  disabled={poolOptions.length <= 1}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-rajdhani transition-all duration-200 border ${
+                    poolOptions.length <= 1
+                      ? 'bg-dark-card border-dark-border/40 text-white/60 cursor-default'
+                      : 'bg-dark-card border-dark-border/50 text-white/70 hover:bg-dark-hover hover:text-white hover:border-white/20 cursor-pointer'
+                  }`}
+                >
+                  <Database size={12} className="text-yellow-400" />
+                  <span>{currentPoolLabel}</span>
+                  <span className="text-white/40">·</span>
+                  <span className="text-blue-300">{filteredSongs.length}</span>
+                  <span className="text-white/30">/ {activeSongs.length} 张</span>
+                  {poolOptions.length > 1 && (
+                    <ChevronRight
+                      size={10}
+                      className={`text-white/40 transition-transform duration-200 ${showPoolDropdown ? 'rotate-90' : ''}`}
+                    />
+                  )}
+                </button>
+
+                {/* 下拉菜单 */}
+                {showPoolDropdown && poolOptions.length > 1 && (
+                  <div className="absolute top-full left-0 mt-2 w-64 rounded-xl glass-panel-strong border border-dark-border/50 shadow-2xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-dark-border/40">
+                      <p className="text-white/40 text-[10px] font-rajdhani uppercase tracking-wider">选择曲库</p>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {poolOptions.map((option) => {
+                        const isActive = activePoolId === option.id
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => handleSelectPool(option.id)}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-all duration-150 ${
+                              isActive
+                                ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/20 border-l-2 border-blue-400/60'
+                                : 'hover:bg-white/5'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isActive && <Check size={12} className="text-green-400 flex-shrink-0" />}
+                              {!isActive && <span className="w-3 flex-shrink-0" />}
+                              <span className={`text-sm font-rajdhani truncate ${isActive ? 'text-white font-bold' : 'text-white/70'}`}>
+                                {option.label}
+                              </span>
+                            </div>
+                            <span className="text-white/40 text-[11px] font-mono flex-shrink-0">
+                              {option.count} 张
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <button
               onClick={() => onSwitchPage?.('home')}
-              className="px-4 py-2 rounded-lg font-rajdhani font-bold text-sm text-white bg-gradient-to-b from-slate-600 to-slate-700 border-2 border-slate-400 hover:from-slate-500 hover:to-slate-600 transition-all duration-200"
+              className="px-4 py-2 rounded-xl font-rajdhani font-bold text-sm text-white/70 bg-dark-card border border-dark-border/50 hover:bg-dark-hover hover:text-white hover:border-white/20 transition-all duration-200"
             >
               返回抽卡
             </button>
           </div>
 
           {/* 模式切换 */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
             <button
               onClick={() => {
                 setMultiMode(false)
                 setActivePlayerId(null)
               }}
-              className={`px-4 py-2 rounded-lg font-rajdhani font-bold text-sm transition-all duration-200 border-2 ${
+              className={`px-4 py-2 rounded-xl font-rajdhani font-bold text-sm transition-all duration-200 border ${
                 !multiMode
-                  ? 'bg-gradient-to-b from-blue-600 to-blue-700 text-white border-blue-400'
-                  : 'bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-600'
+                  ? 'bg-gradient-to-b from-blue-600 to-blue-700 text-white border-blue-500/50 shadow-[0_2px_12px_rgba(59,130,246,0.3)] ring-1 ring-inset ring-white/10'
+                  : 'bg-dark-card text-white/60 border-dark-border/50 hover:bg-dark-hover hover:text-white'
               }`}
             >
               非玩家模式
@@ -302,77 +647,191 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                 setActivePlayerId(playerSelections[0]?.playerId || null)
                 setSingleSelectedSongs([])
               }}
-              className={`px-4 py-2 rounded-lg font-rajdhani font-bold text-sm transition-all duration-200 border-2 ${
+              className={`px-4 py-2 rounded-xl font-rajdhani font-bold text-sm transition-all duration-200 border ${
                 multiMode
-                  ? 'bg-gradient-to-b from-purple-600 to-purple-700 text-white border-purple-400'
-                  : 'bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-600'
+                  ? 'bg-gradient-to-b from-purple-600 to-purple-700 text-white border-purple-500/50 shadow-[0_2px_12px_rgba(139,92,246,0.3)] ring-1 ring-inset ring-white/10'
+                  : 'bg-dark-card text-white/60 border-dark-border/50 hover:bg-dark-hover hover:text-white'
               }`}
             >
               <Users size={14} className="inline mr-1" />
               玩家名模式
             </button>
 
-            {/* 单人模式：选中谱面提示 + 同步按钮 */}
-            {!multiMode && singleSelectedSongs.length > 0 && (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-900/50 to-orange-900/50 border-2 border-yellow-500/50">
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-bold">
-                    已选 {singleSelectedSongs.length}/4
-                  </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {singleSelectedSongs.map(s => (
-                      <span key={s.id} className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/30 truncate max-w-[120px]">
-                        {s.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+            {/* 从赛事同步选手 */}
+            {isTournamentStarted && (
+              <div className="relative ml-2" ref={poolDropdownRef as any}>
                 <button
-                  onClick={() => {
-                    broadcastSyncEvent('select', { songs: singleSelectedSongs })
-                    setSentToOBS(true)
-                  }}
-                  disabled={sentToOBS}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-rajdhani font-bold text-sm transition-all duration-200 border-2 whitespace-nowrap ${
-                    sentToOBS
-                      ? 'bg-green-600 border-green-400 text-white'
-                      : 'bg-gradient-to-b from-yellow-500 to-orange-600 border-yellow-300 text-white hover:from-yellow-400 hover:to-orange-500'
+                  onClick={() => setShowTournamentSync(!showTournamentSync)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-rajdhani font-bold text-sm transition-all duration-200 border ${
+                    multiMode && playerSelections.some(ps => ps.playerId.startsWith('tournament-'))
+                      ? 'bg-gradient-to-b from-amber-500 to-orange-600 text-white border-amber-500/50 shadow-[0_2px_12px_rgba(245,158,11,0.3)] ring-1 ring-inset ring-white/10'
+                      : 'bg-gradient-to-b from-emerald-600 to-emerald-700 text-white border-emerald-500/50 shadow-[0_2px_12px_rgba(34,197,94,0.25)] hover:from-emerald-500 hover:to-emerald-600'
                   }`}
                 >
-                  <Send size={14} />
-                  {sentToOBS ? '已同步' : '同步到OBS'}
+                  <Zap size={14} />
+                  <span className="hidden sm:inline">从赛事同步</span>
+                  <span className="sm:hidden">赛事</span>
                 </button>
-                <button
-                  onClick={() => {
-                    setSingleSelectedSongs([])
-                    setSentToOBS(false)
-                  }}
-                  className="px-3 py-2 rounded-lg bg-slate-700 text-slate-300 border-2 border-slate-500 hover:bg-slate-600 transition-all duration-200 text-xs font-bold"
-                >
-                  清空
-                </button>
+
+                {/* 赛事阶段下拉 */}
+                {showTournamentSync && (
+                  <div className="absolute top-full left-0 mt-2 w-64 rounded-xl glass-panel-strong border border-dark-border/50 shadow-2xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-dark-border/40">
+                      <p className="text-white/40 text-[10px] font-rajdhani uppercase tracking-wider">同步到选手</p>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {(['8to4', 'semi', 'final'] as TournamentStage[]).map((stage) => {
+                        const players = getStagePlayers(stage)
+                        const stageName = { n216: 'N进16', '16to8': '16进8', '8to4': '8进4', semi: '半决赛', final: '决赛' }[stage]
+                        const isCurrent = stage === tournamentCurrentStage
+                        return (
+                          <button
+                            key={stage}
+                            onClick={() => {
+                              handleSyncPlayersFromTournament(stage)
+                              setShowTournamentSync(false)
+                            }}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition-all duration-150"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isCurrent ? (
+                                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0 animate-pulse" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-white/20 flex-shrink-0" />
+                              )}
+                              <span className="text-sm font-rajdhani text-white truncate">{stageName}</span>
+                              {isCurrent && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 border border-green-500/30">当前</span>
+                              )}
+                            </div>
+                            <span className="text-white/40 text-[11px] font-mono flex-shrink-0">{players.length} 人</span>
+                          </button>
+                        )
+                      })}
+                      {/* 允许从任意阶段同步 */}
+                      {(['n216', '16to8'] as TournamentStage[]).map((stage) => {
+                        const players = getStagePlayers(stage)
+                        if (players.length === 0) return null
+                        const stageName = { n216: 'N进16', '16to8': '16进8' }[stage]
+                        const isCurrent = stage === tournamentCurrentStage
+                        return (
+                          <button
+                            key={stage}
+                            onClick={() => {
+                              handleSyncPlayersFromTournament(stage)
+                              setShowTournamentSync(false)
+                            }}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition-all duration-150 border-t border-dark-border/20"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isCurrent ? (
+                                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0 animate-pulse" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-white/20 flex-shrink-0" />
+                              )}
+                              <span className="text-sm font-rajdhani text-white/70 truncate">{stageName}</span>
+                              {isCurrent && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 border border-green-500/30">当前</span>
+                              )}
+                            </div>
+                            <span className="text-white/40 text-[11px] font-mono flex-shrink-0">{players.length} 人</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* 扫码链接按钮（多玩家模式下显示） */}
+            {multiMode && playerSelections.length > 0 && (
+              <button
+                onClick={() => setShowQRCode(!showQRCode)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl font-rajdhani font-bold text-sm bg-dark-card border border-dark-border/50 text-white/70 hover:bg-dark-hover hover:text-white transition-all duration-200"
+                title="生成移动端扫码链接"
+              >
+                <QrCode size={14} />
+                <span className="hidden md:inline">扫码</span>
+              </button>
+            )}
           </div>
+
+          {/* 扫码链接弹窗 */}
+          {showQRCode && multiMode && (
+            <div className="mb-4 p-4 rounded-xl glass-panel border border-emerald-500/30">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-white font-bold text-sm font-rajdhani flex items-center gap-2">
+                  <Smartphone size={14} className="text-emerald-400" />
+                  移动端扫码联动
+                </h3>
+                <button
+                  onClick={() => setShowQRCode(false)}
+                  className="text-white/40 hover:text-white transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 p-3 rounded-xl bg-white">
+                  <QrCode size={80} className="text-black" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white/60 text-xs font-rajdhani mb-2">
+                    在其他设备（手机/平板）浏览器打开下方链接：
+                  </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}${window.location.pathname}?selector=1&multiplayer=1`
+                          : ''
+                      }
+                      className="flex-1 px-3 py-2 rounded-lg bg-dark-bg border border-dark-border/50 text-white/80 text-xs font-mono"
+                    />
+                    <button
+                      onClick={() => {
+                        const url = typeof window !== 'undefined'
+                          ? `${window.location.origin}${window.location.pathname}?selector=1&multiplayer=1`
+                          : ''
+                        navigator.clipboard?.writeText(url)
+                      }}
+                      className="px-3 py-2 rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-600 text-white border border-emerald-400/50 text-xs font-bold font-rajdhani hover:from-emerald-400 hover:to-emerald-500 transition-all"
+                    >
+                      复制
+                    </button>
+                  </div>
+                  <p className="text-emerald-300/80 text-[11px] font-rajdhani">
+                    · 扫码后选择你的选手名字，即可独立选曲<br/>
+                    · 所有设备实时同步，选曲自动互通<br/>
+                    · 建议设备连接同一 Wi-Fi 以保证稳定
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* Search bar + filter toggle */}
           <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索谱面名称、作者或流派..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800 text-white border-2 border-slate-600 focus:border-blue-400 focus:outline-none font-rajdhani text-sm placeholder:text-slate-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-card text-white border-2 border-dark-border/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none font-rajdhani text-sm placeholder:text-white/40 transition-all"
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-rajdhani font-bold text-sm transition-all duration-200 border-2 ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-rajdhani font-bold text-sm transition-all duration-200 border ${
                 showFilters
-                  ? 'bg-gradient-to-b from-blue-600 to-blue-700 text-white border-blue-400'
-                  : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'
+                  ? 'bg-gradient-to-b from-blue-600 to-blue-700 text-white border-blue-500/50 shadow-[0_2px_12px_rgba(59,130,246,0.3)]'
+                  : 'bg-dark-card text-white/60 border-dark-border/50 hover:bg-dark-hover hover:text-white'
               }`}
             >
               <SlidersHorizontal size={16} />
@@ -382,12 +841,12 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
 
           {/* 筛选面板 */}
           {showFilters && (
-            <div className="mb-4 p-4 rounded-xl bg-slate-800/80 border-2 border-slate-600 space-y-4">
+            <div className="mb-4 p-4 rounded-xl glass-panel border border-dark-border/50 space-y-4">
               {/* 拟合定数范围 */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-white font-rajdhani font-bold text-sm">拟合定数范围</span>
-                  <span className="text-yellow-400 text-xs font-rajdhani">
+                  <span className="text-amber-400 text-xs font-rajdhani">
                     {minLevelValue.toFixed(1)} - {maxLevelValue.toFixed(1)}
                   </span>
                 </div>
@@ -399,7 +858,7 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                     step="0.1"
                     value={minLevelValue}
                     onChange={(e) => setLevelValueRange(parseFloat(e.target.value), maxLevelValue)}
-                    className="flex-1 accent-yellow-400"
+                    className="flex-1 accent-amber-400"
                   />
                   <input
                     type="range"
@@ -408,10 +867,10 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                     step="0.1"
                     value={maxLevelValue}
                     onChange={(e) => setLevelValueRange(minLevelValue, parseFloat(e.target.value))}
-                    className="flex-1 accent-yellow-400"
+                    className="flex-1 accent-amber-400"
                   />
                 </div>
-                <div className="flex justify-between text-slate-500 text-[10px] mt-1">
+                <div className="flex justify-between text-white/30 text-[10px] mt-1">
                   <span>1.0</span>
                   <span>15.5</span>
                 </div>
@@ -423,7 +882,7 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                   <div className="flex items-center gap-2 mb-2">
                     <Ban size={14} className="text-red-400" />
                     <span className="text-white font-rajdhani font-bold text-sm">排除曲库</span>
-                    <span className="text-slate-400 text-xs font-rajdhani">
+                    <span className="text-white/40 text-xs font-rajdhani">
                       选中后将从结果中排除该曲库的所有谱面
                     </span>
                   </div>
@@ -431,10 +890,10 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                     {mainSongCount > 0 && (
                       <button
                         onClick={() => toggleExcludedPool('main')}
-                        className={`px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs transition-all duration-200 border-2 ${
+                        className={`px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs transition-all duration-200 border ${
                           excludedPoolIds.includes('main')
-                            ? 'bg-red-600/50 text-red-200 border-red-400 line-through'
-                            : 'bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-600'
+                            ? 'bg-red-500/20 text-red-300 border-red-500/30 line-through'
+                            : 'bg-dark-card text-white/60 border-dark-border/50 hover:bg-dark-hover hover:text-white'
                         }`}
                       >
                         主库 ({mainSongCount})
@@ -444,10 +903,10 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                       <button
                         key={pool.id}
                         onClick={() => toggleExcludedPool(pool.id)}
-                        className={`px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs transition-all duration-200 border-2 ${
+                        className={`px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs transition-all duration-200 border ${
                           excludedPoolIds.includes(pool.id)
-                            ? 'bg-red-600/50 text-red-200 border-red-400 line-through'
-                            : 'bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-600'
+                            ? 'bg-red-500/20 text-red-300 border-red-500/30 line-through'
+                            : 'bg-dark-card text-white/60 border-dark-border/50 hover:bg-dark-hover hover:text-white'
                         }`}
                       >
                         {pool.name} ({pool.songs.length})
@@ -462,37 +921,53 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
           {/* 多人模式：玩家管理 */}
           {multiMode && (
             <div className="space-y-3">
-              {/* 玩家列表 */}
+              {/* 玩家列表 - 带颜色编码 + 移动端友好 */}
               <div className="flex flex-wrap items-center gap-2">
-                {playerSelections.map((ps) => (
-                  <div
-                    key={ps.playerId}
-                    onClick={() => setActivePlayerId(activePlayerId === ps.playerId ? null : ps.playerId)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 border-2 ${
-                      activePlayerId === ps.playerId
-                        ? 'bg-gradient-to-b from-yellow-500 to-orange-600 text-white border-yellow-300'
-                        : ps.song
-                          ? 'bg-green-700/50 text-green-200 border-green-500'
-                          : 'bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-600'
-                    }`}
-                  >
-                    <span className="font-rajdhani font-bold text-sm">{ps.playerName}</span>
-                    {ps.song && <Check size={14} />}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removePlayer(ps.playerId)
-                        if (activePlayerId === ps.playerId) {
-                          const remaining = playerSelections.filter(p => p.playerId !== ps.playerId)
-                          setActivePlayerId(remaining[0]?.playerId || null)
-                        }
-                      }}
-                      className="ml-1 text-white/60 hover:text-white"
+                {playerSelections.map((ps, idx) => {
+                  const colorIdx = idx % PLAYER_COLORS.length
+                  const color = PLAYER_COLORS[colorIdx]
+                  const isActive = activePlayerId === ps.playerId
+                  return (
+                    <div
+                      key={ps.playerId}
+                      onClick={() => setActivePlayerId(isActive ? null : ps.playerId)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all duration-200 border ${
+                        isActive
+                          ? `${color.bg} text-white ${color.border} shadow-[0_2px_12px_${color.glow}] ring-1 ring-inset ring-white/10`
+                          : ps.song
+                            ? 'bg-green-500/10 text-green-200 border-green-500/30 hover:bg-green-500/15'
+                            : 'bg-dark-card text-white/60 border-dark-border/50 hover:bg-dark-hover hover:text-white'
+                      }`}
                     >
-                      <UserMinus size={12} />
-                    </button>
-                  </div>
-                ))}
+                      {/* 颜色编码小圆点 */}
+                      <span
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-white' : ps.song ? 'bg-green-400' : 'bg-white/30'}`}
+                      />
+                      <span className="font-rajdhani font-bold text-sm whitespace-nowrap max-w-[100px] truncate">{ps.playerName}</span>
+                      {ps.song && <Check size={12} className="flex-shrink-0" />}
+                      {/* 已选谱面标题（紧凑显示） */}
+                      {ps.song && (
+                        <span className="text-[10px] text-white/70 hidden lg:inline max-w-[160px] truncate">
+                          · {ps.song.name}
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removePlayer(ps.playerId)
+                          if (activePlayerId === ps.playerId) {
+                            const remaining = playerSelections.filter(p => p.playerId !== ps.playerId)
+                            setActivePlayerId(remaining[0]?.playerId || null)
+                          }
+                        }}
+                        className="ml-1 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors"
+                        title="移除玩家"
+                      >
+                        <UserMinus size={12} />
+                      </button>
+                    </div>
+                  )
+                })}
 
                 {/* 添加玩家 */}
                 <div className="flex items-center gap-2">
@@ -501,62 +976,97 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                     value={newPlayerName}
                     onChange={(e) => setNewPlayerName(e.target.value)}
                     placeholder="玩家名称"
-                    className="w-24 px-2 py-1.5 rounded-lg bg-slate-800 text-white border-2 border-slate-600 focus:border-blue-400 focus:outline-none font-rajdhani text-sm placeholder:text-slate-500"
+                    className="w-24 px-3 py-1.5 rounded-xl bg-dark-card text-white border-2 border-dark-border/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none font-rajdhani text-sm placeholder:text-white/40 transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleAddPlayer()
                     }}
                   />
                   <button
                     onClick={handleAddPlayer}
-                    className="px-3 py-2 rounded-lg bg-gradient-to-b from-green-600 to-green-700 text-white border-2 border-green-400 hover:from-green-500 hover:to-green-600 transition-all duration-200"
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-b from-green-500 to-green-600 text-white border border-green-400/50 hover:from-green-400 hover:to-green-500 transition-all duration-200"
                   >
                     <UserPlus size={14} />
                   </button>
                 </div>
               </div>
 
-              {/* 当前激活玩家提示 */}
+              {/* 当前激活玩家提示 - 移动端优化 */}
               {activePlayerId && (
-                <div className="text-yellow-200 text-xs font-rajdhani">
-                  当前为 <span className="font-bold text-yellow-400">
-                    {playerSelections.find(p => p.playerId === activePlayerId)?.playerName}
-                  </span> 选曲，点击谱面卡片即可分配
+                <div className="text-amber-200/80 text-xs font-rajdhani flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold">
+                    当前：{playerSelections.find(p => p.playerId === activePlayerId)?.playerName}
+                  </span>
+                  <span className="text-white/50">· 点击谱面卡片即可分配选曲</span>
+                  <span className="hidden sm:inline text-white/30">· 点击其他玩家切换</span>
                 </div>
               )}
 
               {/* 发送按钮 */}
               {selectedCount > 0 && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-900/50 to-orange-900/50 border-2 border-yellow-500/50">
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-bold">
-                      已选 {selectedCount}/{playerSelections.length} 人
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl glass-panel border border-amber-500/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-bold flex items-center gap-2">
+                      已选 <span className="text-amber-300">{selectedCount}/{playerSelections.length}</span> 人
                     </p>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {playerSelections.filter(ps => ps.song).map(ps => (
-                        <span key={ps.playerId} className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/30">
-                          {ps.playerName}: {ps.song!.name}
-                        </span>
-                      ))}
+                      {playerSelections.filter(ps => ps.song).map((ps, i) => {
+                        const colorIdx = playerSelections.indexOf(ps) % PLAYER_COLORS.length
+                        const color = PLAYER_COLORS[colorIdx]
+                        return (
+                          <span
+                            key={ps.playerId}
+                            className={`text-[10px] px-2 py-0.5 rounded bg-white/5 border ${color.border} ${color.text}`}
+                          >
+                            {ps.playerName}: {ps.song!.name}
+                          </span>
+                        )
+                      })}
                     </div>
                   </div>
-                  <button
-                    onClick={handleSendToOBS}
-                    disabled={sentToOBS}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-rajdhani font-bold text-sm transition-all duration-200 border-2 ${
-                      sentToOBS
-                        ? 'bg-green-600 border-green-400 text-white'
-                        : 'bg-gradient-to-b from-yellow-500 to-orange-600 border-yellow-300 text-white hover:from-yellow-400 hover:to-orange-500'
-                    }`}
-                  >
-                    <Send size={14} />
-                    {sentToOBS ? '已同步' : '同步到OBS'}
-                  </button>
-                  <button
-                    onClick={handleClearSelections}
-                    className="px-3 py-2 rounded-lg bg-slate-700 text-slate-300 border-2 border-slate-500 hover:bg-slate-600 transition-all duration-200 text-xs font-bold"
-                  >
-                    清空
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={sendTargetStage}
+                      onChange={(e) => setSendTargetStage(e.target.value as TournamentStage | '')}
+                      className="px-2 py-1.5 rounded-xl bg-dark-card border-2 border-dark-border/50 text-white text-xs focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                      title="赛事目标阶段"
+                    >
+                      <option value="">自动 ({tournamentCurrentStage || '无'})</option>
+                      <option value="n216">N进16</option>
+                      <option value="16to8">16进8</option>
+                      <option value="8to4">8进4</option>
+                      <option value="semi">半决赛</option>
+                      <option value="final">决赛</option>
+                    </select>
+                    <button
+                      onClick={handleSendToOBS}
+                      disabled={sentToOBS}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-rajdhani font-bold text-sm transition-all duration-200 border whitespace-nowrap ${
+                        sentToOBS
+                          ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                          : 'bg-gradient-to-b from-amber-500 to-orange-600 border-amber-500/50 text-white hover:shadow-[0_2px_12px_rgba(245,158,11,0.3)]'
+                      }`}
+                    >
+                      <Send size={14} />
+                      {sentToOBS ? '已同步' : '同步到OBS'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const songs = playerSelections.map(ps => ps.song).filter(Boolean) as Song[]
+                        handleSendToTournament(songs)
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-rajdhani font-bold text-sm hover:bg-purple-500/20 transition-all duration-200 whitespace-nowrap"
+                    >
+                      <Trophy size={14} />
+                      赛事
+                    </button>
+                    <button
+                      onClick={handleClearSelections}
+                      className="px-3 py-2 rounded-xl bg-dark-card text-white/60 border border-dark-border/50 hover:bg-dark-hover hover:text-white transition-all duration-200 text-xs font-bold whitespace-nowrap"
+                    >
+                      <RotateCcw size={12} className="inline mr-1" />
+                      清空
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -567,18 +1077,88 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
       <main className="flex-1 px-4 py-4 max-w-7xl mx-auto w-full">
         {/* 曲库切换器 已移至 多曲库管理（MultiPoolImport）组件 */}
 
+        {/* 难度快捷筛选 + 操作按钮栏 */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {/* 难度快捷筛选 */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {DIFFICULTY_CONFIG.map(({ value, label, gradient, border }) => {
+              const isActive = quickDiffFilter === value
+              return (
+                <button
+                  key={value}
+                  onClick={() => setQuickDiffFilter(value)}
+                  className={`px-2.5 py-1 rounded-lg font-orbitron font-black text-[10px] transition-all duration-150 border ${
+                    isActive
+                      ? `bg-gradient-to-b ${gradient} ${border} shadow-md text-white`
+                      : 'bg-dark-card text-white/50 border-dark-border/50 hover:bg-dark-hover hover:text-white/70'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* 右侧操作按钮 */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* 随机选曲 */}
+            <button
+              onClick={handleRandomPick}
+              disabled={filteredSongs.length === 0}
+              title="随机选一首"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs text-white/70 bg-dark-card border border-dark-border/50 hover:bg-dark-hover hover:text-white transition-all duration-200 disabled:opacity-30"
+            >
+              <Shuffle size={12} />
+              <span>随机</span>
+            </button>
+            {/* 键盘导航提示 */}
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white/30 text-[10px] font-rajdhani">
+              <span className="px-1 py-0.5 rounded bg-white/5 border border-white/10 font-mono">↑↓←→</span>
+              <span>导航</span>
+              <span className="px-1 py-0.5 rounded bg-white/5 border border-white/10 font-mono">↵</span>
+              <span>选择</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 谱面数量提示（已筛选时显示） */}
+        {(searchQuery || quickDiffFilter !== 'ALL' || minLevelValue > 1 || maxLevelValue < 15.5) && (
+          <div className="flex items-center gap-2 mb-3 text-xs font-rajdhani text-white/40">
+            <span>
+              {filteredSongs.length === activeSongs.length
+                ? `共 ${activeSongs.length} 张谱面`
+                : `筛选结果：${filteredSongs.length} 张（总计 ${activeSongs.length} 张）`
+              }
+            </span>
+            <button
+              onClick={() => { setSearchQuery(''); setQuickDiffFilter('ALL'); setLevelValueRange(1, 15.5) }}
+              className="ml-2 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-all"
+            >
+              重置筛选
+            </button>
+          </div>
+        )}
+
         {/* Song grid - 分页渲染 */}
         {filteredSongs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/70">
-            <Disc3 size={64} className="mb-4 opacity-50" />
+          <div className="flex flex-col items-center justify-center py-20 text-white/50">
+            <Disc3 size={64} className="mb-4 opacity-40" />
             <p className="font-rajdhani text-lg">
               {activeSongs.length === 0 ? '当前曲库为空，请先导入谱面' : '没有符合条件的谱面'}
             </p>
+            {(searchQuery || quickDiffFilter !== 'ALL') && (
+              <button
+                onClick={() => { setSearchQuery(''); setQuickDiffFilter('ALL') }}
+                className="mt-4 px-4 py-2 rounded-xl bg-dark-card border border-dark-border/50 text-white/60 hover:text-white font-rajdhani text-sm transition-all"
+              >
+                清除筛选
+              </button>
+            )}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {visibleSongs.map((song) => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" ref={gridRef}>
+              {visibleSongs.map((song, index) => {
                 const isSelected = isSongSelectedByActivePlayer(song)
                 const otherPlayer = getSongSelectedByOtherPlayer(song)
                 return (
@@ -586,11 +1166,12 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
                     <SelectorSongCard
                       song={song}
                       isSelected={isSelected}
+                      isFocused={index === focusedIndex}
                       onClick={() => handleSelectSong(song)}
                     />
                     {/* 其他玩家已选标记 */}
                     {otherPlayer && (
-                      <div className="absolute top-1 right-1 z-10 px-2 py-0.5 rounded bg-red-500 text-white text-[10px] font-bold">
+                      <div className="absolute top-1 right-1 z-10 px-2 py-0.5 rounded bg-red-500/90 text-white text-[10px] font-bold backdrop-blur-sm">
                         {otherPlayer}
                       </div>
                     )}
@@ -602,7 +1183,7 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
             {/* 加载更多触发器 */}
             {hasMore && (
               <div ref={loaderRef} className="py-8 text-center">
-                <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 text-slate-300 font-rajdhani font-bold text-sm">
+                <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl glass-panel text-white/50 font-rajdhani font-bold text-sm">
                   <Disc3 size={18} className="animate-spin opacity-50" />
                   加载更多...
                 </div>
@@ -611,6 +1192,105 @@ export default function SongSelector({ onSwitchPage }: SongSelectorProps) {
           </>
         )}
       </main>
+
+      {/* 浮动选择操作栏（单人模式选中时固定显示在底部） */}
+      {!multiMode && singleSelectedSongs.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 glass-panel-strong border-t border-dark-border/60 px-4 py-3 shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            {/* 已选谱面缩略图预览 */}
+            <div className="flex items-center gap-2">
+              {singleSelectedSongs.map((song, idx) => (
+                <div key={song.id} className="relative group">
+                  <img
+                    src={song.cover}
+                    alt={song.name}
+                    className="w-10 h-10 rounded-lg object-cover border border-white/10"
+                  />
+                  <button
+                    onClick={() => handleSelectSong(song)}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={8} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-bold">
+                已选 {singleSelectedSongs.length}/4
+              </p>
+              <p className="text-white/40 text-xs truncate font-rajdhani">
+                {singleSelectedSongs.map(s => s.name).join(' · ')}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* 随机填满剩余槽位 */}
+              {singleSelectedSongs.length < 4 && (
+                <button
+                  onClick={() => handleRandomFill(4)}
+                  title="随机填满"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs text-white/70 bg-dark-card border border-dark-border/50 hover:bg-dark-hover transition-all"
+                >
+                  <Shuffle size={12} />
+                  <span>随机填充</span>
+                </button>
+              )}
+
+              {/* 赛事阶段选择 */}
+              <select
+                value={sendTargetStage}
+                onChange={(e) => setSendTargetStage(e.target.value as TournamentStage | '')}
+                className="px-2 py-1.5 rounded-xl bg-dark-card border-2 border-dark-border/50 text-white text-xs focus:border-blue-500/50 focus:outline-none transition-all"
+                title="赛事目标阶段"
+              >
+                <option value="">自动 ({tournamentCurrentStage || '无'})</option>
+                <option value="n216">N进16</option>
+                <option value="16to8">16进8</option>
+                <option value="8to4">8进4</option>
+                <option value="semi">半决赛</option>
+                <option value="final">决赛</option>
+              </select>
+
+              {/* 同步到OBS */}
+              <button
+                onClick={() => {
+                  broadcastSyncEvent('select', { songs: singleSelectedSongs })
+                  setSentToOBS(true)
+                }}
+                disabled={sentToOBS}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-rajdhani font-bold text-sm transition-all border ${
+                  sentToOBS
+                    ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                    : 'bg-gradient-to-b from-amber-500 to-orange-600 border-amber-500/50 text-white hover:shadow-[0_2px_12px_rgba(245,158,11,0.3)]'
+                }`}
+              >
+                <Send size={14} />
+                {sentToOBS ? '已同步' : '同步到OBS'}
+              </button>
+
+              {/* 发送到赛事 */}
+              <button
+                onClick={() => handleSendToTournament(singleSelectedSongs)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-rajdhani font-bold text-sm hover:bg-purple-500/20 transition-all"
+              >
+                <Trophy size={14} />
+                赛事
+              </button>
+
+              {/* 清空 */}
+              <button
+                onClick={() => { setSingleSelectedSongs([]); setSentToOBS(false) }}
+                className="px-3 py-2 rounded-xl bg-dark-card text-white/60 border border-dark-border/50 hover:bg-dark-hover hover:text-white transition-all text-xs font-bold"
+              >
+                <X size={14} className="inline mr-1" />
+                清空
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

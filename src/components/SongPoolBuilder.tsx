@@ -143,7 +143,7 @@ export default function SongPoolBuilder() {
           <div className="mb-6">
             <h3 className="text-white font-rajdhani font-bold text-lg mb-3 flex items-center gap-2">
               <FolderPlus size={20} />
-              已创建的曲库
+              已创建的谱面库
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {songPools.map(pool => (
@@ -182,7 +182,7 @@ export default function SongPoolBuilder() {
           className="w-full py-4 rounded-xl bg-gradient-to-b from-purple-600 to-purple-700 border-3 border-purple-400 text-white font-rajdhani font-bold text-lg hover:from-purple-500 hover:to-purple-600 transition-all duration-200 shadow-lg flex items-center justify-center gap-3"
         >
           <Plus size={24} />
-          从现有谱面中创建新曲库
+          从现有谱面中创建新谱面库
         </button>
       </div>
     )
@@ -199,11 +199,11 @@ export default function SongPoolBuilder() {
           >
             <X size={18} /> 关闭
           </button>
-          <h2 className="text-white font-orbitron font-bold text-xl">创建新曲库</h2>
+          <h2 className="text-white font-orbitron font-bold text-xl">创建新谱面库</h2>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-slate-300 font-rajdhani">
-            已选择 {selectedSongIds.size} 首
+            已选择 {selectedSongIds.size} 张
           </span>
           {selectedSongs.length > 0 && (
             <button
@@ -223,7 +223,7 @@ export default function SongPoolBuilder() {
             type="text"
             value={poolName}
             onChange={e => setPoolName(e.target.value)}
-            placeholder="输入曲库名称..."
+            placeholder="输入谱面库名称..."
             className="flex-1 px-4 py-3 rounded-xl bg-slate-700 text-white border-2 border-slate-600 font-bold focus:border-purple-400 focus:outline-none transition-colors"
           />
           <button
@@ -231,7 +231,7 @@ export default function SongPoolBuilder() {
             disabled={!poolName.trim() || selectedSongs.length === 0}
             className="px-6 py-3 rounded-xl bg-gradient-to-b from-green-600 to-green-700 border-2 border-green-400 text-white font-rajdhani font-bold hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <Check size={18} /> 创建曲库
+            <Check size={18} /> 创建谱面库
           </button>
         </div>
       </div>
@@ -244,7 +244,7 @@ export default function SongPoolBuilder() {
             type="text"
             value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); setCurrentPage(0) }}
-            placeholder="搜索谱面、作曲家、流派..."
+            placeholder="搜索曲名、作曲家、流派..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-700 text-white border-2 border-slate-600 font-rajdhani focus:border-purple-400 focus:outline-none transition-colors"
           />
         </div>
@@ -313,13 +313,13 @@ export default function SongPoolBuilder() {
           onClick={selectAllVisible}
           className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-sm font-bold hover:bg-slate-600 transition-colors"
         >
-          全选本页
+          本页全选
         </button>
         <button
           onClick={deselectAllVisible}
           className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-sm font-bold hover:bg-slate-600 transition-colors"
         >
-          取消本页
+          取消本页选中
         </button>
         <button
           onClick={() => setSelectedSongIds(new Set())}

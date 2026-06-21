@@ -1,0 +1,157 @@
+/* 代码编辑器增强样式 */
+
+/* 代码工具栏样式 */
+.code-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.code-toolbar-button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--editor-button-bg, #f0f0f0);
+    color: var(--editor-button-color, #333);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.code-toolbar-button:hover {
+    background-color: var(--editor-button-hover-bg, #e0e0e0);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 行号显示样式 */
+.cdx-input.cdx-code__textarea.show-line-numbers {
+    padding-left: 3.5em;
+    counter-reset: line;
+    line-height: 1.5em;
+    background-image: linear-gradient(transparent 0%, transparent 50%, var(--editor-line-number-bg, rgba(0, 0, 0, 0.05)) 50%);
+    background-size: 100% 3em;
+    background-position: 0 0;
+    position: relative;
+}
+
+.cdx-input.cdx-code__textarea.show-line-numbers::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2.5em;
+    background-color: var(--editor-line-number-bg, rgba(0, 0, 0, 0.05));
+    border-right: 1px solid var(--editor-line-number-border, rgba(0, 0, 0, 0.1));
+}
+
+/* 语言标签样式 */
+.cdx-input.cdx-code__textarea[data-language]::after {
+    content: attr(data-language);
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: var(--editor-language-tag-color, #fff);
+    background-color: var(--editor-language-tag-bg, rgba(0, 0, 0, 0.3));
+    border-bottom-left-radius: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.cdx-input.cdx-code__textarea[data-language]:hover::after {
+    opacity: 1;
+}
+
+/* 暗色主题适配 */
+.dark-theme .code-toolbar-button {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.dark-theme .code-toolbar-button:hover {
+    background-color: #3d3d3d;
+}
+
+.dark-theme .cdx-input.cdx-code__textarea.show-line-numbers::before {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .cdx-input.cdx-code__textarea.show-line-numbers {
+    background-image: linear-gradient(transparent 0%, transparent 50%, rgba(255, 255, 255, 0.05) 50%);
+}
+
+/* 代码语言特定样式 */
+.cdx-input.cdx-code__textarea[data-language="javascript"],
+.cdx-input.cdx-code__textarea[data-language="typescript"] {
+    font-family: 'Fira Code', monospace;
+}
+
+.cdx-input.cdx-code__textarea[data-language="html"],
+.cdx-input.cdx-code__textarea[data-language="xml"] {
+    font-family: 'Fira Code', monospace;
+}
+
+.cdx-input.cdx-code__textarea[data-language="css"] {
+    font-family: 'Fira Code', monospace;
+}
+
+.cdx-input.cdx-code__textarea[data-language="php"] {
+    font-family: 'Fira Code', monospace;
+}
+
+/* 改进的代码编辑器容器样式 */
+.custom-code-tool {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.custom-code-tool:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.language-select-container {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--editor-toolbar-bg, #f8f9fa);
+    border-bottom: 1px solid var(--editor-border-color, #e2e8f0);
+}
+
+.dark-theme .language-select-container {
+    background-color: #2d2d2d;
+    border-bottom-color: #3d3d3d;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .language-select-container {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .language-search {
+        flex: 1 1 100%;
+        order: 1;
+    }
+    
+    .ce-code-select {
+        flex: 1 1 auto;
+        order: 2;
+    }
+    
+    .code-toolbar {
+        flex: 0 0 auto;
+        order: 3;
+        margin-left: 0;
+    }
+}

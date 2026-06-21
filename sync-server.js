@@ -19,4 +19,4 @@ wss.on('connection', (ws) => {
   });
 });
 
-console.log('Sync server started on ws://localhost:8081');
+console.log(`Sync server started on ws://localhost:${wss.options.port}`);

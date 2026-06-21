@@ -3,10 +3,20 @@
  * Uses localStorage events for same-browser tabs and WebSocket for cross-device sync.
  */
 
-export type SyncEventType = 'draw' | 'clear' | 'import' | 'select' | 'multiSelect'
+export type SyncEventType = 'draw' | 'clear' | 'import' | 'select' | 'multiSelect' | 'tournament' | 'stageSongs' | 'playerSelections' | 'syncPlayers'
 
 export interface SyncEventPayload {
   songs?: unknown
+  type?: string
+  stages?: unknown
+  currentStage?: unknown
+  stage?: unknown
+  groupId?: unknown
+  // playerSelections: 多玩家选曲在多设备间同步
+  selections?: unknown
+  // syncPlayers: 从赛事同步选手到多玩家模式
+  players?: unknown
+  sourceStage?: unknown
 }
 
 export interface SyncEvent {
@@ -31,8 +41,25 @@ let clientId = Math.random().toString(36).slice(2, 10)
 
 const listeners: Array<(event: SyncEvent) => void> = []
 
+// 重连计时器和退避策略
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let reconnectAttempts = 0
+const MAX_RECONNECT_DELAY = 15000
+
+function scheduleReconnect(): void {
+  if (reconnectTimer) return
+  reconnectAttempts += 1
+  // 指数退避: 1.5s, 3s, 6s, 12s, 最大 15s
+  const delay = Math.min(1500 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY)
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    connectWebSocket()
+  }, delay)
+}
+
 /**
  * Try to connect to WebSocket server for cross-device sync
+ * Includes automatic reconnection with exponential backoff.
  */
 function connectWebSocket(): void {
   if (typeof window === 'undefined') return
@@ -42,6 +69,7 @@ function connectWebSocket(): void {
 
     ws.onopen = () => {
       wsConnected = true
+      reconnectAttempts = 0
     }
 
     ws.onmessage = (event) => {
@@ -58,15 +86,18 @@ function connectWebSocket(): void {
     ws.onclose = () => {
       wsConnected = false
       ws = null
+      scheduleReconnect()
     }
 
     ws.onerror = () => {
       // WebSocket not available, fall back to localStorage only
       ws = null
       wsConnected = false
+      scheduleReconnect()
     }
   } catch {
     // WebSocket not supported
+    scheduleReconnect()
   }
 }
 

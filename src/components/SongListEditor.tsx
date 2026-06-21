@@ -272,7 +272,7 @@ export default function SongListEditor() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mb-4">
           <span className="text-slate-300 text-sm font-rajdhani">
-            共 {songs.length} 首，第 {currentPage + 1}/{totalPages} 页
+            共 {songs.length} 张，第 {currentPage + 1}/{totalPages} 页
           </span>
           <div className="flex gap-2">
             <button

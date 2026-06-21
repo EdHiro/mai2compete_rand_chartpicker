@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import type { Song } from '@/store/songStore'
+import { Upload, Download, ArrowRightLeft, FileJson, Sparkles, AlertTriangle, Music2 } from 'lucide-react'
 
 // 本文件实现前端转换工具：支持上传 JSON、粘贴、转换并下载
 
@@ -49,11 +50,24 @@ function normalizeItem(src: any) {
   } as Song
 }
 
+const difficultyColorMap: Record<string, string> = {
+  BASIC: 'bg-difficulty-basic/20 text-difficulty-basicLight border-difficulty-basic/40',
+  ADVANCED: 'bg-difficulty-advanced/20 text-difficulty-advancedLight border-difficulty-advanced/40',
+  EXPERT: 'bg-difficulty-expert/20 text-difficulty-expertLight border-difficulty-expert/40',
+  MASTER: 'bg-difficulty-master/20 text-difficulty-masterLight border-difficulty-master/40',
+  'Re:MASTER': 'bg-difficulty-remaster/20 text-difficulty-remasterLight border-difficulty-remaster/40',
+}
+
+function difficultyBadgeClass(diff: string): string {
+  return difficultyColorMap[diff] || 'bg-dark-border/40 text-white/70 border-dark-border/60'
+}
+
 export default function ConvertTool() {
   const [inputText, setInputText] = useState('')
   const [items, setItems] = useState<Song[]>([])
   const [error, setError] = useState<string | null>(null)
   const [outName, setOutName] = useState('converted-songlist.json')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files && e.target.files[0]
@@ -200,42 +214,190 @@ export default function ConvertTool() {
   }, [items, outName])
 
   return (
-    <div className="min-h-screen bg-dark-bg text-white p-6">
-      <header className="max-w-6xl mx-auto mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">转换工具 — 图形化界面</h1>
-        <div className="flex items-center gap-3">
-          <input type="file" accept="application/json" onChange={handleFile} />
-        </div>
-      </header>
+    <div className="min-h-screen bg-dark-bg text-white relative">
+      {/* Hero 背景装饰 */}
+      <div className="absolute inset-0 hero-grid pointer-events-none opacity-40" />
+      <div className="absolute inset-0 radial-glow pointer-events-none" />
 
-      <main className="max-w-6xl mx-auto">
-        <div className="mb-4">
-          <label className="block mb-2">或粘贴源 JSON：</label>
-          <textarea value={inputText} onChange={e => setInputText(e.target.value)} className="w-full h-40 p-2 text-black" />
-        </div>
-
-        <div className="flex gap-3 mb-6">
-          <button onClick={handleConvert} className="px-4 py-2 bg-green-600 rounded">转换</button>
-          <input value={outName} onChange={e => setOutName(e.target.value)} className="px-3 py-2 text-black" />
-          <button onClick={handleDownload} className="px-4 py-2 bg-blue-600 rounded" disabled={items.length === 0}>下载 JSON</button>
-        </div>
-
-        {error && <p className="text-red-400 mb-4">{error}</p>}
-
-        <p className="mb-2">转换后记录数： {items.length}</p>
-
-        <div className="grid grid-cols-3 gap-4">
-          {items.slice(0, 30).map(it => (
-            <div key={it.id} className="p-2 bg-gray-800 rounded">
-              <p className="font-bold">{it.name}</p>
-              <p className="text-sm">{it.difficulty} {it.level}{it.isPlus ? '+' : ''}</p>
-              <p className="text-sm">{it.author} • {it.bpm} BPM</p>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Header 卡片 */}
+        <div className="glass-panel-strong rounded-2xl border border-dark-border/50 shadow-card overflow-hidden mb-6">
+          <div className="top-gradient-bar" />
+          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 shadow-[0_8px_20px_rgba(139,92,246,0.4)]">
+                <FileJson size={22} className="text-white" />
+                <Sparkles size={12} className="absolute -top-1 -right-1 text-yellow-300" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-black font-orbitron title-gradient tracking-wider leading-tight">
+                  转换工具
+                </h1>
+                <p className="text-sm text-white/60 font-rajdhani">JSON 曲库归一化 · 图形化界面</p>
+              </div>
             </div>
-          ))}
+
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                onChange={handleFile}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="btn-ghost flex items-center gap-2"
+              >
+                <Upload size={16} />
+                <span className="font-rajdhani">上传 JSON</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {items.length > 30 && <p className="mt-4">仅预览前 30 条。</p>}
-      </main>
+        {/* 主体双列布局 */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* 左列：输入区 */}
+          <section className="lg:col-span-2 space-y-4">
+            <div className="glass-panel rounded-2xl border border-dark-border/50 shadow-card overflow-hidden">
+              <div className="px-5 py-3 border-b border-dark-border/40 flex items-center justify-between">
+                <h2 className="font-orbitron font-bold text-sm text-white/90 tracking-wider flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+                  粘贴 JSON 源数据
+                </h2>
+                <span className="chip font-rajdhani">{inputText.length} 字符</span>
+              </div>
+              <div className="p-4">
+                <textarea
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder='例如：[{"name":"歌曲","difficulty":"EXPERT","level":12}]'
+                  className="input-field font-mono text-xs leading-relaxed resize-y min-h-[280px]"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+
+            {/* 操作行 */}
+            <div className="glass-panel rounded-2xl border border-dark-border/50 shadow-card p-4">
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleConvert}
+                  className="btn-primary-2 w-full flex items-center justify-center gap-2 text-sm"
+                >
+                  <ArrowRightLeft size={16} />
+                  <span className="font-rajdhani">执行转换</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-white/50 font-rajdhani shrink-0">输出文件名</span>
+                  <input
+                    value={outName}
+                    onChange={(e) => setOutName(e.target.value)}
+                    className="input-field py-2 text-sm flex-1"
+                    placeholder="converted-songlist.json"
+                  />
+                </div>
+
+                <button
+                  onClick={handleDownload}
+                  disabled={items.length === 0}
+                  className="btn-ghost w-full flex items-center justify-center gap-2 text-sm"
+                >
+                  <Download size={16} />
+                  <span className="font-rajdhani">下载 JSON</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* 右列：结果区 */}
+          <section className="lg:col-span-3 space-y-4">
+            {/* 错误 Banner */}
+            {error && (
+              <div className="error-banner animate-fadeIn">
+                <AlertTriangle size={16} className="shrink-0" />
+                <span className="font-rajdhani font-semibold">{error}</span>
+              </div>
+            )}
+
+            {/* 摘要 chips */}
+            <div className="glass-panel rounded-2xl border border-dark-border/50 shadow-card p-4 flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 mr-2">
+                <Music2 size={16} className="text-purple-300" />
+                <span className="font-orbitron font-bold text-sm text-white/90 tracking-wider">曲库摘要</span>
+              </div>
+              <span className="chip">
+                <span className="text-blue-300">●</span> 共 <b className="text-white mx-1">{items.length}</b> 条记录
+              </span>
+              {items.length > 30 && (
+                <span className="chip">仅预览前 30 条</span>
+              )}
+              {items.length === 0 && (
+                <span className="chip text-white/50">等待转换...</span>
+              )}
+            </div>
+
+            {/* 预览卡片网格 */}
+            {items.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {items.slice(0, 30).map((it) => (
+                  <div key={it.id} className="surface-card">
+                    {/* 顶部条 */}
+                    <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-70" />
+
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <h3 className="font-orbitron font-bold text-sm text-white leading-snug line-clamp-2 flex-1">
+                          {it.name || '（无名）'}
+                        </h3>
+                        <span className={`shrink-0 inline-flex items-center text-[10px] font-bold font-rajdhani px-2 py-1 rounded-md border ${difficultyBadgeClass(String(it.difficulty))}`}>
+                          {it.difficulty}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="chip !py-1 !text-[11px]">
+                          Lv.{it.level}{it.isPlus ? '+' : ''}
+                        </span>
+                        {it.chartType && (
+                          <span className="chip !py-1 !text-[11px] capitalize">
+                            {it.chartType}
+                          </span>
+                        )}
+                        {it.bpm ? (
+                          <span className="chip !py-1 !text-[11px]">{it.bpm} BPM</span>
+                        ) : null}
+                      </div>
+
+                      <div className="pt-3 border-t border-dark-border/40 text-xs text-white/60 font-rajdhani space-y-1">
+                        {it.author && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-white/40 shrink-0">作者</span>
+                            <span className="text-white/80 line-clamp-1">{it.author}</span>
+                          </div>
+                        )}
+                        {it.difficultyAuthor && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-white/40 shrink-0">谱师</span>
+                            <span className="text-white/80 line-clamp-1">{it.difficultyAuthor}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* 页脚 */}
+        <footer className="mt-10 text-center text-white/40 text-xs font-rajdhani tracking-widest">
+          JSON 曲库转换工具 · Neon Arcade
+        </footer>
+      </div>
     </div>
   )
 }

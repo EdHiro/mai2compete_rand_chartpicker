@@ -1,0 +1,559 @@
+/* 扩展编辑器工具样式 */
+
+/* HTML工具样式 */
+.ce-html-tool {
+    margin-bottom: 15px;
+}
+
+.ce-html-tool__editor-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.ce-html-tool__editor {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid var(--editor-border-color, #e0e0e0);
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: vertical;
+    background-color: var(--editor-code-bg, #f8f8f8);
+    color: var(--editor-code-color, #333);
+}
+
+/* 页面引用工具样式 */
+.ce-page-reference {
+    margin-bottom: 15px;
+}
+
+.ce-page-reference__input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 1px solid var(--editor-border-color, #e0e0e0);
+    border-radius: 8px;
+    background-color: var(--editor-input-bg, #f8f8f8);
+}
+
+.ce-page-reference__label {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.ce-page-reference__url-input,
+.ce-page-reference__title-input,
+.ce-page-reference__image-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--editor-border-color, #e0e0e0);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.ce-page-reference__desc-input {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border: 1px solid var(--editor-border-color, #e0e0e0);
+    border-radius: 6px;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.ce-page-reference__fetch-button {
+    align-self: flex-start;
+    padding: 8px 16px;
+    background-color: var(--editor-button-active-bg, #2196f3);
+    color: var(--editor-button-active-color, #fff);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.ce-page-reference__fetch-button:hover {
+    background-color: var(--editor-button-hover-bg, #1976d2);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ce-page-reference__preview {
+    margin-top: 15px;
+}
+
+.ce-page-reference__card {
+    border: 1px solid var(--editor-border-color, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ce-page-reference__card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.ce-page-reference__link {
+    display: flex;
+    text-decoration: none;
+    color: inherit;
+}
+
+.ce-page-reference__image {
+    flex: 0 0 120px;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ce-page-reference__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ce-page-reference__content {
+    flex: 1;
+    padding: 15px;
+}
+
+.ce-page-reference__title {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--editor-text-color, #333);
+}
+
+.ce-page-reference__description {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: var(--editor-text-secondary, #666);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ce-page-reference__url {
+    font-size: 12px;
+    color: var(--editor-text-muted, #999);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ce-page-reference__loading,
+.ce-page-reference__error,
+.ce-page-reference__empty {
+    padding: 15px;
+    text-align: center;
+    border-radius: 8px;
+    background-color: var(--editor-input-bg, #f8f8f8);
+    color: var(--editor-text-secondary, #666);
+}
+
+.ce-page-reference__error {
+    color: #f44336;
+}
+
+/* 暗色主题适配 */
+.dark-theme .ce-page-reference__input-container,
+.dark-theme .ce-page-reference__url-input,
+.dark-theme .ce-page-reference__title-input,
+.dark-theme .ce-page-reference__desc-input,
+.dark-theme .ce-page-reference__image-input {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.dark-theme .ce-page-reference__card {
+    border-color: #444;
+    background-color: #2d2d2d;
+}
+
+.dark-theme .ce-page-reference__title {
+    color: #e0e0e0;
+}
+
+.dark-theme .ce-page-reference__description {
+    color: #aaa;
+}
+
+.dark-theme .ce-page-reference__url {
+    color: #888;
+}
+
+.dark-theme .ce-page-reference__loading,
+.dark-theme .ce-page-reference__error,
+.dark-theme .ce-page-reference__empty {
+    background-color: #2d2d2d;
+    color: #aaa;
+}
+
+/* 字体大小工具样式 */
+.ce-tune-fontsize {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ce-tune-fontsize__button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--editor-button-bg, #f0f0f0);
+    color: var(--editor-button-color, #333);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-fontsize__button:hover {
+    background-color: var(--editor-button-hover-bg, #e0e0e0);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ce-tune-fontsize__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    background-color: var(--editor-dropdown-bg, #fff);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 120px;
+    margin-top: 8px;
+}
+
+.ce-tune-fontsize__option {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-fontsize__option:hover {
+    background-color: var(--editor-dropdown-hover-bg, #f5f5f5);
+}
+
+.ce-tune-fontsize__option--active {
+    background-color: var(--editor-dropdown-active-bg, #e3f2fd);
+    color: var(--editor-dropdown-active-color, #2196f3);
+}
+
+/* 字体样式工具样式 */
+.ce-tune-fontstyle {
+    display: flex;
+    gap: 8px;
+    padding: 6px;
+}
+
+.ce-tune-fontstyle__button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--editor-button-bg, #f0f0f0);
+    color: var(--editor-button-color, #333);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-fontstyle__button:hover {
+    background-color: var(--editor-button-hover-bg, #e0e0e0);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ce-tune-fontstyle__button--active {
+    background-color: var(--editor-button-active-bg, #2196f3) !important;
+    color: var(--editor-button-active-color, #fff) !important;
+}
+
+/* 行间距工具样式 */
+.ce-tune-lineheight {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ce-tune-lineheight__button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--editor-button-bg, #f0f0f0);
+    color: var(--editor-button-color, #333);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-lineheight__button:hover {
+    background-color: var(--editor-button-hover-bg, #e0e0e0);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ce-tune-lineheight__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    background-color: var(--editor-dropdown-bg, #fff);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 120px;
+    margin-top: 8px;
+}
+
+.ce-tune-lineheight__option {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-lineheight__option:hover {
+    background-color: var(--editor-dropdown-hover-bg, #f5f5f5);
+}
+
+.ce-tune-lineheight__option--active {
+    background-color: var(--editor-dropdown-active-bg, #e3f2fd);
+    color: var(--editor-dropdown-active-color, #2196f3);
+}
+
+/* 文本缩进工具样式 */
+.ce-tune-indent {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ce-tune-indent__button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--editor-button-bg, #f0f0f0);
+    color: var(--editor-button-color, #333);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-indent__button:hover {
+    background-color: var(--editor-button-hover-bg, #e0e0e0);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ce-tune-indent__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    background-color: var(--editor-dropdown-bg, #fff);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 120px;
+    margin-top: 8px;
+}
+
+.ce-tune-indent__option {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ce-tune-indent__option:hover {
+    background-color: var(--editor-dropdown-hover-bg, #f5f5f5);
+}
+
+.ce-tune-indent__option--active {
+    background-color: var(--editor-dropdown-active-bg, #e3f2fd);
+    color: var(--editor-dropdown-active-color, #2196f3);
+}
+
+/* 背景颜色工具样式 */
+.ce-tune-bgcolor {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: var(--editor-button-bg, #f0f0f0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ce-tune-bgcolor__input {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.ce-tune-bgcolor:hover {
+    transform: translateY(-2px);
+    background: var(--editor-button-hover-bg, #e0e0e0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 应用样式 */
+/* 字体大小应用样式 */
+.ce-block--fontsize-small .ce-block__content {
+    font-size: 0.875em;
+}
+
+.ce-block--fontsize-normal .ce-block__content {
+    font-size: 1em;
+}
+
+.ce-block--fontsize-large .ce-block__content {
+    font-size: 1.25em;
+}
+
+.ce-block--fontsize-x-large .ce-block__content {
+    font-size: 1.5em;
+}
+
+.ce-block--fontsize-xx-large .ce-block__content {
+    font-size: 2em;
+}
+
+/* 字体样式应用样式 */
+.ce-block--fontstyle-bold .ce-block__content {
+    font-weight: bold;
+}
+
+.ce-block--fontstyle-italic .ce-block__content {
+    font-style: italic;
+}
+
+.ce-block--fontstyle-underline .ce-block__content {
+    text-decoration: underline;
+}
+
+.ce-block--fontstyle-bold-italic .ce-block__content {
+    font-weight: bold;
+    font-style: italic;
+}
+
+.ce-block--fontstyle-bold-underline .ce-block__content {
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.ce-block--fontstyle-italic-underline .ce-block__content {
+    font-style: italic;
+    text-decoration: underline;
+}
+
+.ce-block--fontstyle-bold-italic-underline .ce-block__content {
+    font-weight: bold;
+    font-style: italic;
+    text-decoration: underline;
+}
+
+/* 行间距应用样式 */
+.ce-block--lineheight-tight .ce-block__content {
+    line-height: 1.2;
+}
+
+.ce-block--lineheight-normal .ce-block__content {
+    line-height: 1.5;
+}
+
+.ce-block--lineheight-relaxed .ce-block__content {
+    line-height: 1.8;
+}
+
+.ce-block--lineheight-loose .ce-block__content {
+    line-height: 2.0;
+}
+
+/* 文本缩进应用样式 */
+.ce-block--indent-none .ce-block__content {
+    text-indent: 0;
+}
+
+.ce-block--indent-small .ce-block__content {
+    text-indent: 1em;
+}
+
+.ce-block--indent-medium .ce-block__content {
+    text-indent: 2em;
+}
+
+.ce-block--indent-large .ce-block__content {
+    text-indent: 3em;
+}
+
+/* 暗色主题适配 */
+.dark-theme .ce-tune-fontsize__button,
+.dark-theme .ce-tune-fontstyle__button,
+.dark-theme .ce-tune-lineheight__button,
+.dark-theme .ce-tune-indent__button,
+.dark-theme .ce-tune-bgcolor {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.dark-theme .ce-tune-fontsize__button:hover,
+.dark-theme .ce-tune-fontstyle__button:hover,
+.dark-theme .ce-tune-lineheight__button:hover,
+.dark-theme .ce-tune-indent__button:hover,
+.dark-theme .ce-tune-bgcolor:hover {
+    background-color: #3d3d3d;
+}
+
+.dark-theme .ce-tune-fontsize__dropdown,
+.dark-theme .ce-tune-lineheight__dropdown,
+.dark-theme .ce-tune-indent__dropdown {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.dark-theme .ce-tune-fontsize__option:hover,
+.dark-theme .ce-tune-lineheight__option:hover,
+.dark-theme .ce-tune-indent__option:hover {
+    background-color: #3d3d3d;
+}
+
+.dark-theme .ce-tune-fontsize__option--active,
+.dark-theme .ce-tune-lineheight__option--active,
+.dark-theme .ce-tune-indent__option--active,
+.dark-theme .ce-tune-fontstyle__button--active {
+    background-color: #1976d2 !important;
+    color: #ffffff !important;
+}

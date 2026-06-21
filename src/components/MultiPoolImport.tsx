@@ -131,8 +131,8 @@ export default function MultiPoolImport() {
         {/* 标题栏 */}
         <div className="flex items-center gap-2 mb-4">
           <Database size={20} className="text-purple-400" />
-          <h3 className="font-rajdhani font-bold text-white text-lg">多曲库管理</h3>
-          <span className="ml-auto text-xs text-purple-300 bg-purple-800/50 px-2 py-1 rounded">已选 {selectedPools.length} 个曲库</span>
+          <h3 className="font-rajdhani font-bold text-white text-lg">多谱面库管理</h3>
+          <span className="ml-auto text-xs text-purple-300 bg-purple-800/50 px-2 py-1 rounded">已选 {selectedPools.length} 个谱面库</span>
         </div>
 
         {/* 导入按钮 */}
@@ -149,7 +149,7 @@ export default function MultiPoolImport() {
             className="w-full px-4 py-2 rounded-lg bg-gradient-to-b from-purple-600 to-purple-700 text-white font-bold border border-purple-400 hover:from-purple-500 hover:to-purple-600 transition-all duration-200 flex items-center justify-center gap-2"
           >
             <Upload size={18} />
-            导入曲库 (JSON)
+            导入谱面库 (JSON)
           </button>
         </div>
 
@@ -201,8 +201,8 @@ export default function MultiPoolImport() {
             {/* 模式说明 */}
             <p className="text-slate-400 text-xs mt-2">
               {multiDrawMode === 'mixed'
-                ? `从所有选中曲库中随机混合抽取 ${drawCount} 张谱面`
-                : `从每个选中曲库中分别抽取指定数量的谱面`
+                ? `从所有选中谱面库中随机混合抽取 ${drawCount} 张谱面`
+                : `从每个选中谱面库中分别抽取指定数量的谱面`
               }
             </p>
 
