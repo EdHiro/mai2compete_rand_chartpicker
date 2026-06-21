@@ -12,6 +12,13 @@ export interface SyncEventPayload {
   currentStage?: unknown
   stage?: unknown
   groupId?: unknown
+  // 赛事全状态同步
+  isTournamentStarted?: boolean
+  timerRunning?: boolean
+  timerSeconds?: number
+  timerLabel?: string
+  isCustomMode?: boolean
+  customStages?: unknown
   // playerSelections: 多玩家选曲在多设备间同步
   selections?: unknown
   // syncPlayers: 从赛事同步选手到多玩家模式
@@ -37,7 +44,7 @@ function getWsUrl(): string {
 
 let ws: WebSocket | null = null
 let wsConnected = false
-let clientId = Math.random().toString(36).slice(2, 10)
+const clientId = Math.random().toString(36).slice(2, 10)
 
 const listeners: Array<(event: SyncEvent) => void> = []
 
@@ -70,14 +77,19 @@ function connectWebSocket(): void {
     ws.onopen = () => {
       wsConnected = true
       reconnectAttempts = 0
+      // 新设备连接后主动请求一次最新赛事状态
+      ws.send(JSON.stringify({ type: 'requestSync', payload: {}, timestamp: Date.now(), source: clientId }))
     }
 
     ws.onmessage = (event) => {
       try {
-        const data: SyncEvent = JSON.parse(event.data)
+        const data = JSON.parse(event.data)
+        // 过滤内部同步请求
+        if (data.type === 'requestSync') return
+        const syncEvent = data as SyncEvent
         // Ignore events from ourselves
-        if (data.source === clientId) return
-        listeners.forEach(cb => cb(data))
+        if (syncEvent.source === clientId) return
+        listeners.forEach(cb => cb(syncEvent))
       } catch {
         // ignore parse errors
       }

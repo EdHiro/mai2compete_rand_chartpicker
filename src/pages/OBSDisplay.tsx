@@ -1,11 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Music } from 'lucide-react'
 import { Song, Difficulty } from '@/store/songStore'
+import { STAGE_LABELS, type TournamentStage } from '@/store/tournamentStore'
 import SongCardContent from '@/components/SongCardContent'
 import { subscribeSyncEvents, type SyncEvent, getConnectionStatus } from '@/utils/tabSync'
 
-// 扩展 Song 类型以支持多玩家信息
-type MultiSong = Song & { _playerName?: string; _playerId?: string }
+// 扩展 Song 类型以支持多玩家信息与歌曲标签
+type MultiSong = Song & { _playerName?: string; _playerId?: string; _label?: string }
+
+const chunk = <T,>(arr: T[], size: number): T[][] =>
+  arr.reduce((acc, _, i) => (i % size ? acc : [...acc, arr.slice(i, i + size)]), [] as T[][])
 
 interface DrawCardProps {
   song: MultiSong
@@ -36,9 +40,15 @@ const DrawCard = function ({ song, index, showFront, animationState }: DrawCardP
   const isExiting = animationState === 'exit'
   const bgForBack = isExiting ? getCardBgImage(song.difficulty) : ENTRANCE_BG
   const hasPlayerName = song._playerName
+  const label = song._label
 
   return (
     <div className="flex flex-col items-center gap-3 relative">
+      {label && (
+        <div className="absolute -top-3 z-20 px-4 py-1 rounded-full bg-gradient-to-b from-amber-400 to-orange-600 text-white text-sm font-black shadow-[0_2px_12px_rgba(245,158,11,0.4)] border border-amber-300/50">
+          {label}
+        </div>
+      )}
       <div
         className={`relative w-[300px] h-[520px] perspective-1000 ${
           isExiting ? 'animate-cardExit' : 'animate-cardEntrance'
@@ -119,10 +129,12 @@ export default function OBSDisplay() {
   const [displaySongs, setDisplaySongs] = useState<MultiSong[]>([])
   const [exitingSongs, setExitingSongs] = useState<MultiSong[]>([])
   const [exitKey, setExitKey] = useState(0)
+  const [currentStage, setCurrentStage] = useState<TournamentStage>('n216')
+  const [isTournamentStarted, setIsTournamentStarted] = useState(false)
   // Refs to avoid stale closures in event handlers
   const displaySongsRef = useRef<MultiSong[]>([])
   const phaseRef = useRef(phase)
-  const lastEventTimestampRef = useRef<number>(0)
+  const lastEventRef = useRef<{ timestamp: number; type: string } | null>(null)
 
   useEffect(() => {
     phaseRef.current = phase
@@ -216,9 +228,10 @@ export default function OBSDisplay() {
     }
 
     const unsubscribe = subscribeSyncEvents((event: SyncEvent) => {
-      // 同一事件可能通过 localStorage 和 WebSocket 两个通道同时送达，按时间戳去重
-      if (event.timestamp === lastEventTimestampRef.current) return
-      lastEventTimestampRef.current = event.timestamp
+      // 同一事件可能通过 localStorage 和 WebSocket 两个通道同时送达，按时间戳+类型去重
+      const last = lastEventRef.current
+      if (last && last.timestamp === event.timestamp && last.type === event.type) return
+      lastEventRef.current = { timestamp: event.timestamp, type: event.type }
 
       if (event.type === 'draw') {
         const payload = event.payload as { songs: Song[] }
@@ -242,22 +255,41 @@ export default function OBSDisplay() {
     }
   }, [])
 
+  // 监听赛事阶段变化，用于背景展示
+  useEffect(() => {
+    const loadCached = () => {
+      try {
+        const saved = localStorage.getItem('tournament-cache')
+        if (saved) {
+          const data = JSON.parse(saved)
+          if (data.currentStage) setCurrentStage(data.currentStage)
+          if (typeof data.isTournamentStarted === 'boolean') setIsTournamentStarted(data.isTournamentStarted)
+        }
+      } catch { /* ignore */ }
+    }
+    loadCached()
+
+    const unsubscribe = subscribeSyncEvents((event: SyncEvent) => {
+      if (event.type === 'tournament') {
+        const payload = event.payload as {
+          type: string
+          currentStage?: TournamentStage
+          isTournamentStarted?: boolean
+        }
+        if (payload.type === 'update') {
+          if (payload.currentStage) setCurrentStage(payload.currentStage)
+          if (typeof payload.isTournamentStarted === 'boolean') setIsTournamentStarted(payload.isTournamentStarted)
+        } else if (payload.type === 'reset') {
+          setCurrentStage('n216')
+          setIsTournamentStarted(false)
+        }
+      }
+    })
+    return unsubscribe
+  }, [])
+
   const songsToShow = exitingSongs.length > 0 ? exitingSongs : displaySongs
   const isExitingPhase = exitingSongs.length > 0
-
-  const renderCards = useMemo(
-    () => songsToShow.map((song, index) => (
-      <div key={`obs-${exitKey}-${index}`}>
-        <DrawCard
-          song={song}
-          index={index}
-          showFront={isExitingPhase || index < revealedCount}
-          animationState={isExitingPhase ? 'exit' : 'enter'}
-        />
-      </div>
-    )),
-    [songsToShow, exitKey, isExitingPhase, revealedCount]
-  )
 
   return (
     <div className="min-h-screen bg-dark-bg py-12 px-4 relative overflow-hidden flex flex-col items-center justify-center">
@@ -268,6 +300,15 @@ export default function OBSDisplay() {
         <div className="absolute inset-0 bg-gradient-radial from-amber-600/10 via-transparent to-transparent" style={{ backgroundPosition: '30% 80%' }} />
         <div className="absolute inset-0 hero-grid opacity-30 [background-size:48px_48px]" />
       </div>
+
+      {/* 背景当前阶段大字 */}
+      {isTournamentStarted && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+          <span className="text-[10rem] lg:text-[14rem] md:text-[18rem] font-black text-white/[0.05] tracking-[0.12em] whitespace-nowrap">
+            {STAGE_LABELS[currentStage]}
+          </span>
+        </div>
+      )}
 
       {/* Connection status */}
       <div className="relative z-10 text-center mb-8">
@@ -309,8 +350,24 @@ export default function OBSDisplay() {
           </div>
         )}
 
-        <div className="relative z-10 flex flex-wrap items-center justify-center gap-10">
-          {renderCards}
+        <div className="relative z-10 flex flex-col items-center gap-8">
+          {chunk(songsToShow, 4).map((row, rowIdx) => (
+            <div key={`obs-row-${exitKey}-${rowIdx}`} className="flex flex-wrap items-center justify-center gap-10">
+              {row.map((song, colIdx) => {
+                const index = rowIdx * 4 + colIdx
+                return (
+                  <div key={`obs-${exitKey}-${index}`}>
+                    <DrawCard
+                      song={song}
+                      index={index}
+                      showFront={isExitingPhase || index < revealedCount}
+                      animationState={isExitingPhase ? 'exit' : 'enter'}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import {
   type TournamentStageData,
 } from '@/store/tournamentStore'
 import { subscribeSyncEvents, type SyncEvent, getConnectionStatus } from '@/utils/tabSync'
-import { Trophy, Sparkles, Medal, Crown, ChevronDown } from 'lucide-react'
+import { Trophy, Medal, Crown } from 'lucide-react'
 
 // 从 localStorage 加载缓存数据
 function loadCachedData(): { stages?: Record<string, unknown>; currentStage?: string; isTournamentStarted?: boolean } | null {
@@ -33,7 +33,6 @@ export default function OBSTournament() {
   const [currentStage, setCurrentStage] = useState<TournamentStage>('n216')
   const [viewMode, setViewMode] = useState<'current' | 'all' | 'champion'>('current')
   const [animateKey, setAnimateKey] = useState(0)
-  const [showChampionAnimation, setShowChampionAnimation] = useState(false)
   const prevFinalLockedRef = useRef(false)
   const lastAnimateTimeRef = useRef(0)
   const ANIMATION_COOLDOWN = 800
@@ -59,7 +58,6 @@ export default function OBSTournament() {
     const hasChampion = finalStage?.players.some((p) => p.rank === 1 && p.score !== null)
 
     if (isFinalLocked && hasChampion && !prevFinalLockedRef.current) {
-      setShowChampionAnimation(true)
       setViewMode('champion')
       setAnimateKey(k => k + 1)
     }
@@ -135,7 +133,6 @@ export default function OBSTournament() {
         prevStage = null
         prevStageLocked = {}
         localStorage.removeItem('tournament-cache')
-        setShowChampionAnimation(false)
         setViewMode('current')
       }
     }
@@ -322,7 +319,6 @@ export default function OBSTournament() {
               {showChampionBtn && (
                 <button
                   onClick={() => {
-                    setShowChampionAnimation(true)
                     setViewMode('champion')
                     setAnimateKey(k => k + 1)
                   }}
@@ -378,33 +374,33 @@ export default function OBSTournament() {
                 <div className="px-6 py-5">
                   {isStageFinal && stagePlayers.length === 2 ? (
                     /* 决赛并排展示 */
-                    <div className="flex items-stretch justify-center gap-8">
+                    <div className="flex items-stretch justify-center gap-8 h-[65vh]">
                       {stagePlayers.map((p) => (
                         <div
                           key={p.id}
-                          className={`flex-1 max-w-md flex flex-col items-center justify-center gap-4 px-10 py-12 rounded-2xl border-2 ${
+                          className={`flex-1 max-w-2xl flex flex-col items-center justify-center gap-3 px-8 py-6 rounded-2xl border-2 ${
                             p.rank === 1
                               ? 'bg-gradient-to-b from-amber-500/25 to-dark-card border-amber-500/60'
                               : 'bg-gradient-to-b from-dark-hover to-dark-card border-dark-border/60'
                           }`}
                         >
                           {showStageRank && p.rank !== null && (
-                            <span className={`w-16 h-16 rounded-full font-black flex items-center justify-center text-2xl ${
+                            <span className={`w-[clamp(2.75rem,4vw,4rem)] h-[clamp(2.75rem,4vw,4rem)] rounded-full font-black flex items-center justify-center text-[clamp(1rem,1.4vw,1.75rem)] ${
                               p.rank === 1 ? 'bg-amber-500 text-amber-900' : 'bg-white/70 text-dark-bg'
                             }`}>
                               {p.rank}
                             </span>
                           )}
-                          <span className="text-white font-black text-4xl text-center">{p.name}</span>
-                          <div className="flex flex-col items-center gap-2 mt-2">
+                          <span className="text-white font-black text-center text-[clamp(1.5rem,2.2vw,3rem)]">{p.name}</span>
+                          <div className="flex flex-col items-center gap-1 mt-1">
                             <div className="flex flex-col items-center">
                               <span className="text-green-400 text-sm font-bold opacity-70">完成率</span>
-                              <span className="text-green-300 font-mono text-3xl">{p.score?.toFixed(4)}</span>
+                              <span className="text-green-300 font-mono text-[clamp(1.25rem,1.8vw,2.25rem)]">{p.score?.toFixed(4)}</span>
                             </div>
                             {p.dxScore && (
                               <div className="flex flex-col items-center">
                                 <span className="text-blue-400 text-sm font-bold opacity-70">DX分数</span>
-                                <span className="text-blue-300 font-mono text-xl">DX {p.dxScore}</span>
+                                <span className="text-blue-300 font-mono text-[clamp(0.875rem,1.2vw,1.5rem)]">DX {p.dxScore}</span>
                               </div>
                             )}
                           </div>
@@ -413,7 +409,7 @@ export default function OBSTournament() {
                     </div>
                   ) : (
                     /* 其他阶段网格布局 */
-                    <div className={`grid gap-4 ${
+                    <div className={`grid gap-4 h-[65vh] ${
                       stagePlayers.length <= 4 ? 'grid-cols-4' :
                       stagePlayers.length <= 8 ? 'grid-cols-8' : 'grid-cols-8'
                     }`}>
@@ -426,9 +422,7 @@ export default function OBSTournament() {
                         return (
                         <div
                           key={p.id}
-                          className={`flex flex-col items-center justify-center gap-4 px-4 py-10 rounded-2xl border-2 ${
-                            stagePlayers.length <= 8 ? 'min-h-[320px]' : ''
-                          } ${
+                          className={`flex flex-col items-center justify-center gap-2 px-3 py-4 rounded-2xl border-2 ${
                             isAdvLabel
                               ? 'bg-gradient-to-b from-blue-500/25 to-dark-card border-blue-400/60 ring-4 ring-blue-400/20'
                               : isEliminated
@@ -443,17 +437,17 @@ export default function OBSTournament() {
                           }`}
                         >
                           {isAdvLabel && (
-                            <span className="px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-sm font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-bold">
                               {advLabel}
                             </span>
                           )}
                           {isEliminated && (
-                            <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-400/40 text-red-300 text-sm font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-400/40 text-red-300 text-xs font-bold">
                               淘汰
                             </span>
                           )}
                           {showStageRank && !isAdvLabel && !isEliminated && p.rank !== null && (
-                            <span className={`w-14 h-14 rounded-full font-black flex items-center justify-center text-xl ${
+                            <span className={`w-[clamp(2.5rem,3.5vw,3.5rem)] h-[clamp(2.5rem,3.5vw,3.5rem)] rounded-full font-black flex items-center justify-center text-[clamp(0.875rem,1.2vw,1.5rem)] ${
                               p.rank === 1 ? 'bg-amber-500 text-amber-900' :
                               p.rank === 2 ? 'bg-white/70 text-dark-bg' :
                               'bg-dark-bg text-white/60'
@@ -461,16 +455,16 @@ export default function OBSTournament() {
                               {p.rank}
                             </span>
                           )}
-                          <span className={`font-bold text-2xl text-center ${isEliminated ? 'text-white/50' : 'text-white'}`}>{p.name}</span>
-                          <div className="flex flex-col items-center gap-2">
+                          <span className={`font-bold text-center text-[clamp(1.125rem,1.6vw,2.25rem)] ${isEliminated ? 'text-white/50' : 'text-white'}`}>{p.name}</span>
+                          <div className="flex flex-col items-center gap-1">
                             <div className="flex flex-col items-center">
                               <span className={`text-xs font-bold opacity-70 ${isEliminated ? 'text-red-400/70' : 'text-green-400'}`}>完成率</span>
-                              <span className={`font-mono text-2xl ${isEliminated ? 'text-red-300/70' : 'text-green-300'}`}>{p.score?.toFixed(4)}</span>
+                              <span className={`font-mono text-[clamp(1rem,1.4vw,1.75rem)] ${isEliminated ? 'text-red-300/70' : 'text-green-300'}`}>{p.score?.toFixed(4)}</span>
                             </div>
                             {p.dxScore && (
                               <div className="flex flex-col items-center">
                                 <span className="text-blue-400 text-xs font-bold opacity-70">DX分数</span>
-                                <span className="text-blue-300 font-mono text-base">DX {p.dxScore}</span>
+                                <span className="text-blue-300 font-mono text-[clamp(0.75rem,1vw,1.25rem)]">DX {p.dxScore}</span>
                               </div>
                             )}
                           </div>
@@ -550,7 +544,6 @@ export default function OBSTournament() {
             {hasChampion && (
               <button
                 onClick={() => {
-                  setShowChampionAnimation(true)
                   setViewMode('champion')
                   setAnimateKey(k => k + 1)
                 }}
@@ -567,11 +560,11 @@ export default function OBSTournament() {
           <div key={`stage-${currentStage}-${animateKey}`} className="flex-1 min-h-0">
             {/* 决赛：并排展示两个选手 */}
             {isFinal ? (
-              <div className="flex items-stretch justify-center gap-10 h-full">
+              <div className="flex items-stretch justify-center gap-8 h-[65vh]">
                 {currentPlayers.map((p, index) => (
                   <div
                     key={p.id}
-                    className={`flex-1 flex flex-col items-center justify-center gap-6 px-12 rounded-3xl border-2 opacity-0 animate-[fadeSlideUp_0.6s_ease-out_both] ${
+                    className={`flex-1 max-w-2xl flex flex-col items-center justify-center gap-4 px-10 rounded-3xl border-2 opacity-0 animate-[fadeSlideUp_0.6s_ease-out_both] ${
                       p.rank === 1
                         ? 'bg-gradient-to-b from-amber-500/25 to-dark-card border-amber-500/60'
                         : 'bg-gradient-to-b from-dark-hover to-dark-card border-dark-border/60'
@@ -579,22 +572,22 @@ export default function OBSTournament() {
                     style={{ animationDelay: `${index * 200}ms` }}
                   >
                     {showRank && p.rank !== null && (
-                      <span className={`w-24 h-24 rounded-full font-black flex items-center justify-center text-4xl ${
+                      <span className={`w-[clamp(3.5rem,5vw,5rem)] h-[clamp(3.5rem,5vw,5rem)] rounded-full font-black flex items-center justify-center text-[clamp(1.25rem,2vw,2.5rem)] ${
                         p.rank === 1 ? 'bg-amber-500 text-amber-900' : 'bg-white/70 text-dark-bg'
                       }`}>
                         {p.rank}
                       </span>
                     )}
-                    <span className="text-white font-black text-6xl text-center">{p.name}</span>
-                    <div className="flex flex-col items-center gap-4 mt-6">
+                    <span className="text-white font-black text-center text-[clamp(2.25rem,3.5vw,5rem)]">{p.name}</span>
+                    <div className="flex flex-col items-center gap-3 mt-2">
                       <div className="flex flex-col items-center">
-                        <span className="text-green-400 text-base font-bold opacity-70">完成率</span>
-                        <span className="text-green-300 font-mono text-5xl">{p.score?.toFixed(4)}</span>
+                        <span className="text-green-400 text-sm font-bold opacity-70">完成率</span>
+                        <span className="text-green-300 font-mono text-[clamp(1.75rem,2.5vw,3.5rem)]">{p.score?.toFixed(4)}</span>
                       </div>
                       {p.dxScore && (
                         <div className="flex flex-col items-center">
-                          <span className="text-blue-400 text-base font-bold opacity-70">DX分数</span>
-                          <span className="text-blue-300 font-mono text-3xl">DX {p.dxScore}</span>
+                          <span className="text-blue-400 text-sm font-bold opacity-70">DX分数</span>
+                          <span className="text-blue-300 font-mono text-[clamp(1.25rem,1.8vw,2.25rem)]">DX {p.dxScore}</span>
                         </div>
                       )}
                     </div>
@@ -603,7 +596,7 @@ export default function OBSTournament() {
               </div>
             ) : (
               /* 其他阶段：自适应网格布局 */
-              <div className={`grid gap-5 h-full ${
+              <div className={`grid gap-4 h-[65vh] ${
                 currentPlayers.length <= 4
                   ? 'grid-cols-4'
                   : currentPlayers.length <= 8
@@ -619,7 +612,7 @@ export default function OBSTournament() {
                   return (
                   <div
                     key={p.id}
-                    className={`flex flex-col items-center justify-center gap-4 px-5 rounded-2xl border-2 opacity-0 animate-[fadeSlideUp_0.6s_ease-out_both] ${
+                    className={`flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-2xl border-2 opacity-0 animate-[fadeSlideUp_0.6s_ease-out_both] ${
                       isAdvancedLabel
                         ? 'bg-gradient-to-b from-blue-500/25 to-dark-card border-blue-400/60 ring-4 ring-blue-400/20'
                         : isEliminated
@@ -645,7 +638,7 @@ export default function OBSTournament() {
                       </span>
                     )}
                     {showRank && !isAdvancedLabel && !isEliminated && p.rank !== null && (
-                      <span className={`w-16 h-16 rounded-full font-black flex items-center justify-center text-2xl ${
+                      <span className={`w-[clamp(2.75rem,4vw,4rem)] h-[clamp(2.75rem,4vw,4rem)] rounded-full font-black flex items-center justify-center text-[clamp(1rem,1.4vw,1.75rem)] ${
                         p.rank === 1 ? 'bg-amber-500 text-amber-900' :
                         p.rank === 2 ? 'bg-white/70 text-dark-bg' :
                         'bg-dark-bg text-white/60'
@@ -653,16 +646,16 @@ export default function OBSTournament() {
                         {p.rank}
                       </span>
                     )}
-                    <span className={`font-bold text-3xl text-center ${isEliminated ? 'text-white/50' : 'text-white'}`}>{p.name}</span>
-                    <div className="flex flex-col items-center gap-2">
+                    <span className={`font-bold text-center text-[clamp(1.25rem,1.8vw,2.5rem)] ${isEliminated ? 'text-white/50' : 'text-white'}`}>{p.name}</span>
+                    <div className="flex flex-col items-center gap-1">
                       <div className="flex flex-col items-center">
-                        <span className={`text-sm font-bold opacity-70 ${isEliminated ? 'text-red-400/70' : 'text-green-400'}`}>完成率</span>
-                        <span className={`font-mono text-3xl ${isEliminated ? 'text-red-300/70' : 'text-green-300'}`}>{p.score?.toFixed(4)}</span>
+                        <span className={`text-xs font-bold opacity-70 ${isEliminated ? 'text-red-400/70' : 'text-green-400'}`}>完成率</span>
+                        <span className={`font-mono text-[clamp(1.125rem,1.6vw,2rem)] ${isEliminated ? 'text-red-300/70' : 'text-green-300'}`}>{p.score?.toFixed(4)}</span>
                       </div>
                       {p.dxScore && (
                         <div className="flex flex-col items-center">
-                          <span className="text-blue-400 text-sm font-bold opacity-70">DX分数</span>
-                          <span className="text-blue-300 font-mono text-xl">DX {p.dxScore}</span>
+                          <span className="text-blue-400 text-xs font-bold opacity-70">DX分数</span>
+                          <span className="text-blue-300 font-mono text-[clamp(0.875rem,1.2vw,1.5rem)]">DX {p.dxScore}</span>
                         </div>
                       )}
                     </div>

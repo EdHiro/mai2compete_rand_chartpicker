@@ -720,8 +720,6 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         ...buildRankingStateUpdate(state, stage, players, advancedPlayers),
       }
     })
-    // 自动广播
-    setTimeout(() => get().broadcastTournamentData(), 100)
   },
 
   undoRankings: (stage) => {
@@ -742,8 +740,6 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         previewRankings: { ...state.previewRankings, [stage]: null },
       }
     })
-    // 自动广播
-    setTimeout(() => get().broadcastTournamentData(), 100)
   },
 
   calculateRankings: (stage) => {
@@ -768,8 +764,6 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         ...buildRankingStateUpdate(state, stage, players, advancedPlayers),
       }
     })
-    // 自动广播
-    setTimeout(() => get().broadcastTournamentData(), 100)
   },
 
   resetTournament: () => {
@@ -800,12 +794,18 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 
   broadcastTournamentData: () => {
-    const { stages, currentStage, isTournamentStarted } = get()
-    if (typeof window !== 'undefined' && isTournamentStarted) {
+    const state = get()
+    if (typeof window !== 'undefined' && state.isTournamentStarted) {
       broadcastSyncEvent('tournament', {
         type: 'update',
-        stages,
-        currentStage,
+        stages: state.stages,
+        currentStage: state.currentStage,
+        isTournamentStarted: state.isTournamentStarted,
+        timerRunning: state.timerRunning,
+        timerSeconds: state.timerSeconds,
+        timerLabel: state.timerLabel,
+        isCustomMode: state.isCustomMode,
+        customStages: state.customStages,
       })
     }
   },
@@ -1397,14 +1397,87 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
   },
 }))
 
-// Persist to localStorage on every state change
-useTournamentStore.subscribe((state) => {
+// 本地变更防抖广播，避免连续输入/计时器每秒都产生大量同步包
+let isApplyingRemoteUpdate = false
+let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null
+const SYNC_DEBOUNCE_MS = 250
+
+function broadcastTournamentSnapshot(): void {
+  const state = useTournamentStore.getState()
+  if (!state.isTournamentStarted) return
+
+  broadcastSyncEvent('tournament', {
+    type: 'update',
+    stages: state.stages,
+    currentStage: state.currentStage,
+    isTournamentStarted: state.isTournamentStarted,
+    timerRunning: state.timerRunning,
+    timerSeconds: state.timerSeconds,
+    timerLabel: state.timerLabel,
+    isCustomMode: state.isCustomMode,
+    customStages: state.customStages,
+  })
+}
+
+// Persist to localStorage on every state change, and auto-broadcast when tournament is active
+useTournamentStore.subscribe(() => {
+  const state = useTournamentStore.getState()
   saveToLocalStorage(state)
+
+  if (isApplyingRemoteUpdate || !state.isTournamentStarted) return
+
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer)
+  syncDebounceTimer = setTimeout(() => {
+    syncDebounceTimer = null
+    broadcastTournamentSnapshot()
+  }, SYNC_DEBOUNCE_MS)
 })
 
-// Listen for stage songs sync events from other tabs/devices
+// Listen for sync events from other tabs/devices
 if (typeof window !== 'undefined') {
   subscribeSyncEvents((event) => {
+    if (event.type === 'tournament') {
+      const payload = event.payload as {
+        type: string
+        stages?: Record<TournamentStage, TournamentStageData>
+        currentStage?: TournamentStage
+        isTournamentStarted?: boolean
+        timerRunning?: boolean
+        timerSeconds?: number
+        timerLabel?: string
+        isCustomMode?: boolean
+        customStages?: CustomStageConfig[]
+      }
+
+      if (payload.type === 'update') {
+        isApplyingRemoteUpdate = true
+        useTournamentStore.setState((state) => ({
+          isTournamentStarted: payload.isTournamentStarted ?? state.isTournamentStarted,
+          stages: payload.stages ?? state.stages,
+          currentStage: payload.currentStage ?? state.currentStage,
+          timerRunning: payload.timerRunning ?? state.timerRunning,
+          timerSeconds: payload.timerSeconds ?? state.timerSeconds,
+          timerLabel: payload.timerLabel ?? state.timerLabel,
+          isCustomMode: payload.isCustomMode ?? state.isCustomMode,
+          customStages: payload.customStages ?? state.customStages,
+        }))
+        isApplyingRemoteUpdate = false
+      } else if (payload.type === 'reset') {
+        isApplyingRemoteUpdate = true
+        useTournamentStore.setState({
+          stages: { ...defaultStages },
+          currentStage: 'n216',
+          isTournamentStarted: false,
+          isCustomMode: false,
+          customStages: [],
+          timerRunning: false,
+          timerSeconds: 0,
+          timerLabel: '',
+        })
+        isApplyingRemoteUpdate = false
+      }
+    }
+
     if (event.type === 'stageSongs') {
       const payload = event.payload as {
         stage: TournamentStage
@@ -1422,11 +1495,13 @@ if (typeof window !== 'undefined') {
         label: s.label,
       }))
 
+      isApplyingRemoteUpdate = true
       if (payload.groupId && stageData.groups.length > 0) {
         store.setGroupSongs(payload.stage, payload.groupId, newSongs)
       } else {
         store.setStageSongs(payload.stage, newSongs)
       }
+      isApplyingRemoteUpdate = false
     }
   })
 }

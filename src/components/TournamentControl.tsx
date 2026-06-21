@@ -13,7 +13,9 @@ import {
 import type { Song } from '@/store/songStore'
 import { useToast } from '@/components/Toast'
 import { QRCodeSVG } from 'qrcode.react'
-import { Trophy, Lock, Unlock, ChevronRight, RotateCcw, Play, Save, Users, ArrowRight, Download, Upload, Clock, History, Trash2, Eye, X, LayoutList, Plus, Minus, Hash, FolderOpen, FolderPlus, Edit3, QrCode, Music, Swords, Shuffle, Undo2 } from 'lucide-react'
+import { Trophy, Lock, Unlock, ChevronRight, RotateCcw, Play, Save, Users, ArrowRight, Download, Upload, Clock, History, Trash2, Eye, X, LayoutList, Plus, Minus, Hash, FolderOpen, FolderPlus, Edit3, QrCode, Music, Swords, Shuffle, Undo2, Wifi, WifiOff } from 'lucide-react'
+import { getConnectionStatus } from '@/utils/tabSync'
+import { cn } from '@/lib/utils'
 
 interface TournamentControlProps {
   onSwitchPage?: (target: 'home' | 'selector' | 'tournament') => void
@@ -96,6 +98,17 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
   const [templates, setTemplates] = useState<TournamentTemplate[]>([])
   const [templateNameInput, setTemplateNameInput] = useState('')
   const [showCustomStageEditor, setShowCustomStageEditor] = useState(false)
+
+  // 同步连接状态
+  const [connStatus, setConnStatus] = useState<'connected' | 'connecting' | 'local-only'>(
+    getConnectionStatus() as 'connected' | 'connecting' | 'local-only'
+  )
+  useEffect(() => {
+    const id = setInterval(() => {
+      setConnStatus(getConnectionStatus() as 'connected' | 'connecting' | 'local-only')
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // Timer tick effect
   useEffect(() => {
@@ -246,7 +259,6 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     const nextStage = STAGE_ORDER[stageIdx + 1]
     if (nextStage) {
       setCurrentStage(nextStage as TournamentStage)
-      setTimeout(() => broadcastTournamentData(), 100)
     }
   }
 
@@ -495,6 +507,23 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
           <Trophy className="text-amber-400" size={24} />
           赛事管理
         </h2>
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          {connStatus === 'connected' ? (
+            <Wifi size={13} className="text-green-400" />
+          ) : (
+            <WifiOff size={13} className={cn(connStatus === 'connecting' ? 'text-yellow-400' : 'text-red-400')} />
+          )}
+          <span
+            className={cn(
+              'font-medium',
+              connStatus === 'connected' && 'text-green-400',
+              connStatus === 'connecting' && 'text-yellow-400',
+              connStatus === 'local-only' && 'text-red-400'
+            )}
+          >
+            {connStatus === 'connected' ? '跨设备同步已连接' : connStatus === 'connecting' ? '跨设备同步连接中…' : '仅本设备同步'}
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -1257,19 +1286,44 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 )}
 
                 {/* 分组选手 */}
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-2">
                   {group.playerIds.map((pid) => {
                     const p = stageData.players.find((pl) => pl.id === pid)
                     if (!p) return null
                     return (
-                      <div key={pid} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dark-card border border-dark-border/40">
-                        {p.seed && <span className="text-yellow-400 font-mono text-xs">#{p.seed}</span>}
-                        <span className="text-white text-sm font-bold">{p.name}</span>
-                        {p.score !== null && (
-                          <span className="text-green-300 font-mono text-xs">{p.score.toFixed(4)}</span>
+                      <div key={pid} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-dark-card border border-dark-border/40">
+                        {p.seed && <span className="text-yellow-400 font-mono text-xs w-6">#{p.seed}</span>}
+                        <span className="flex-1 text-white text-sm font-bold">{p.name}</span>
+
+                        {stageData.locked ? (
+                          <>
+                            <span className="text-green-300 font-mono text-sm w-24 text-right">{p.score?.toFixed(4) ?? '-'}</span>
+                            <span className="text-blue-300 font-mono text-sm w-20 text-right">{p.dxScore || '-'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              min="0"
+                              max="500"
+                              value={p.score ?? ''}
+                              onChange={(e) => handleScoreChange(p.id, e.target.value)}
+                              placeholder="完成率"
+                              className="input-field w-28 text-right py-1.5 font-mono text-sm"
+                            />
+                            <input
+                              type="text"
+                              value={p.dxScore}
+                              onChange={(e) => updatePlayer(currentStage, p.id, { dxScore: e.target.value })}
+                              placeholder="DX分数"
+                              className="input-field w-28 text-right py-1.5 text-blue-300 font-mono text-sm"
+                            />
+                          </>
                         )}
+
                         {p.rank !== null && (
-                          <span className={`ml-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
                             p.rank === 1 ? 'bg-yellow-500 text-yellow-900' : 'bg-dark-bg text-white/60'
                           }`}>
                             {p.rank}

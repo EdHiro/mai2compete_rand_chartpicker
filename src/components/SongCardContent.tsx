@@ -124,7 +124,7 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         <img
           src={song.cover}
           alt={song.name}
-          className="w-[250px] h-[270px] object-cover"
+          className="w-[254px] h-[270px] object-cover"
           loading="lazy"
         />
       </div>
