@@ -155,6 +155,7 @@ interface SongStore {
   setLevelRange: (min: string, max: string) => void
   setIncludePlusOnly: (include: boolean) => void
   resetLevelFilter: () => void
+  resetAllFilters: () => void
   setDrawCount: (count: number) => void
   setIsDrawing: (isDrawing: boolean) => void
   clearSelectedSongs: () => void
@@ -498,6 +499,19 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   resetLevelFilter: () => {
     set({ minLevel: '1', maxLevel: '15', includePlusOnly: false })
+  },
+
+  resetAllFilters: () => {
+    set({
+      activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER']),
+      chartTypeFilter: new Set(['dx', 'standard']),
+      genreFilter: '',
+      minLevel: '1',
+      maxLevel: '15',
+      includePlusOnly: false,
+      minLevelValue: 1.0,
+      maxLevelValue: 15.5,
+    })
   },
 
   setDrawCount: (count) => {

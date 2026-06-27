@@ -100,20 +100,20 @@ export default function CheckInPage() {
       : 'bg-red-300'
 
   return (
-    <div className="min-h-screen bg-dark-bg flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden page-enter">
       {/* Hero 背景装饰 */}
       <div className="absolute inset-0 hero-grid pointer-events-none opacity-60" />
       <div className="absolute inset-0 radial-glow pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-pink-500/5 pointer-events-none" />
 
       <div className="relative w-full max-w-md z-10">
-        <div className="glass-panel-strong rounded-2xl border border-dark-border/50 shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden">
+        <div className="glass-panel rounded-3xl overflow-hidden">
           {/* 顶部渐变装饰条 */}
           <div className="top-gradient-bar" />
 
           <div className="p-8">
             {/* 标题区 */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-6 animate-enter-scale">
               <h1 className="text-3xl font-black font-orbitron title-gradient mb-2 tracking-wider">
                 选手签到
               </h1>
@@ -137,7 +137,7 @@ export default function CheckInPage() {
                 </div>
                 <h2 className="text-2xl font-bold font-orbitron text-green-300 mb-2">签到成功！</h2>
                 <p className="text-white/60 mb-6 font-rajdhani">你的名字已记录</p>
-                <button onClick={handleReset} className="btn-ghost">
+                <button onClick={handleReset} className="btn-secondary press-down">
                   继续签到
                 </button>
               </div>
@@ -165,7 +165,7 @@ export default function CheckInPage() {
                     placeholder="请输入你的参赛名字"
                     maxLength={20}
                     disabled={wsStatus !== 'connected'}
-                    className="input-field text-lg"
+                    className="input-refined text-lg"
                     autoFocus
                   />
                 </div>
@@ -173,7 +173,7 @@ export default function CheckInPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={wsStatus !== 'connected'}
-                  className="btn-primary-2 w-full text-base flex items-center justify-center gap-2"
+                  className="btn-primary w-full text-base flex items-center justify-center gap-2 press-down"
                 >
                   <Send size={18} /> 确认签到
                 </button>

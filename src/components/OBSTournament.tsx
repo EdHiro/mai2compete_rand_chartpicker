@@ -164,7 +164,7 @@ export default function OBSTournament() {
     const runnerUp = finalStage?.players.find((p) => p.rank === 2)
 
     return (
-      <div className="h-screen bg-dark-bg relative overflow-hidden flex items-center justify-center">
+      <div className="h-screen bg-[#0b0c15] relative overflow-hidden flex items-center justify-center page-enter">
         {/* 背景光效 */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-radial from-amber-500/20 via-amber-900/5 to-transparent animate-pulse" />
@@ -212,7 +212,7 @@ export default function OBSTournament() {
           {/* 冠军分数 */}
           {champion?.score !== null && champion?.score !== undefined && (
             <div className="opacity-0 animate-[championReveal_0.6s_ease-out_1.3s_forwards] mb-8">
-              <div className="inline-flex flex-col items-center gap-1 px-8 py-4 rounded-2xl bg-dark-card border border-amber-500/40">
+              <div className="inline-flex flex-col items-center gap-1 px-8 py-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-amber-500/40">
                 <span className="text-white/50 text-sm font-medium">完成率</span>
                 <span className="text-amber-300 font-mono text-5xl font-black">{champion.score.toFixed(4)}</span>
               </div>
@@ -228,7 +228,7 @@ export default function OBSTournament() {
           {/* 亚军展示 */}
           {runnerUp && (
             <div className="opacity-0 animate-[championReveal_0.6s_ease-out_1.6s_forwards] mt-4">
-              <div className="inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-dark-card border border-dark-border/40">
+              <div className="inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10">
                 <Medal className="text-white/40" size={20} />
                 <span className="text-white/60 font-bold">亚军</span>
                 <span className="text-white font-bold text-lg">{runnerUp.name}</span>
@@ -243,13 +243,13 @@ export default function OBSTournament() {
           <div className="opacity-0 animate-[championReveal_0.5s_ease-out_2s_forwards] mt-10 flex gap-4 justify-center">
             <button
               onClick={() => setViewMode('current')}
-              className="px-6 py-3 rounded-xl bg-dark-card text-white/80 border border-dark-border/50 hover:bg-dark-hover transition-all font-bold text-base flex items-center gap-2"
+              className="btn-secondary text-base py-3 px-6 press-down"
             >
               返回赛事
             </button>
             <button
               onClick={() => setViewMode('all')}
-              className="px-6 py-3 rounded-xl bg-gradient-to-b from-amber-500 to-orange-700 text-white font-bold border border-amber-400/40 shadow-[0_4px_20px_rgba(245,158,11,0.3)] hover:from-amber-400 hover:to-orange-600 transition-all text-base"
+              className="px-6 py-3 rounded-xl bg-gradient-to-b from-amber-500 to-orange-700 text-white font-bold border border-amber-400/40 shadow-[0_4px_20px_rgba(245,158,11,0.3)] hover:from-amber-400 hover:to-orange-600 transition-all text-base press-down btn-shimmer"
             >
               查看总览
             </button>
@@ -281,11 +281,15 @@ export default function OBSTournament() {
 
   if (!isStarted) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-[#0b0c15] flex items-center justify-center relative overflow-hidden page-enter">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.10)_0%,transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(236,72,153,0.08)_0%,transparent_50%)]" />
+        </div>
+        <div className="text-center relative z-10">
           <Trophy size={64} className="mx-auto mb-4 text-white/30" />
           <p className="text-white/50 text-xl font-bold">等待赛事开始...</p>
-          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-dark-card border border-dark-border/50 text-xs font-bold text-white/50">
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-xs font-bold text-white/50">
             {getConnectionStatus() === 'connected' ? (
               <span className="text-green-400">● 已连接</span>
             ) : (
@@ -308,10 +312,14 @@ export default function OBSTournament() {
     const showChampionBtn = !!champion
 
     return (
-      <div className="min-h-screen bg-dark-bg py-6">
-        <div className="w-[90vw] mx-auto">
+      <div className="min-h-screen bg-[#0b0c15] py-6 relative overflow-hidden page-enter">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.10)_0%,transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(236,72,153,0.08)_0%,transparent_50%)]" />
+        </div>
+        <div className="w-[90vw] mx-auto relative z-10">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-4xl font-black text-white flex items-center gap-4">
+            <h1 className="text-4xl font-black title-gradient flex items-center gap-4">
               <Trophy className="text-amber-400" size={48} />
               赛事晋级总览
             </h1>
@@ -322,14 +330,14 @@ export default function OBSTournament() {
                     setViewMode('champion')
                     setAnimateKey(k => k + 1)
                   }}
-                  className="px-5 py-3 rounded-xl bg-gradient-to-b from-amber-500 to-orange-700 text-white text-lg font-bold border border-amber-400/40 shadow-[0_2px_12px_rgba(245,158,11,0.25)] hover:from-amber-400 hover:to-orange-600 transition-all flex items-center gap-2"
+                  className="px-5 py-3 rounded-xl bg-gradient-to-b from-amber-500 to-orange-700 text-white text-lg font-bold border border-amber-400/40 shadow-[0_2px_12px_rgba(245,158,11,0.25)] hover:from-amber-400 hover:to-orange-600 transition-all flex items-center gap-2 press-down btn-shimmer"
                 >
                   <Crown size={18} /> 冠军页
                 </button>
               )}
               <button
                 onClick={() => setViewMode('current')}
-                className="px-5 py-3 rounded-xl bg-gradient-to-b from-blue-500 to-blue-700 text-white text-lg font-bold border border-blue-400/40 shadow-[0_2px_12px_rgba(59,130,246,0.25)] hover:from-blue-400 hover:to-blue-600 transition-all"
+                className="btn-primary text-lg py-3 px-5 press-down"
               >
                 查看当前阶段
               </button>
@@ -348,13 +356,13 @@ export default function OBSTournament() {
             const showStageRank = stage === 'semi' || stage === 'final'
 
             return (
-              <div key={stage} className="mb-6 bg-dark-card rounded-2xl border border-dark-border/40 overflow-hidden">
-                <div className="px-6 py-4 bg-dark-bg/70 flex items-center justify-between">
+              <div key={stage} className="mb-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                <div className="px-6 py-4 bg-[#0b0c15]/70 flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-xl text-base font-black ${
                       stage === currentStage
-                        ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white border border-blue-400/40'
-                        : 'bg-dark-bg text-white/70 border border-dark-border/50'
+                        ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white border border-blue-400/40 animate-glow-pulse'
+                        : 'bg-[#0b0c15] text-white/70 border border-white/10'
                     }`}>
                       {STAGE_LABELS[stage]}
                     </span>
@@ -380,13 +388,13 @@ export default function OBSTournament() {
                           key={p.id}
                           className={`flex-1 max-w-2xl flex flex-col items-center justify-center gap-3 px-8 py-6 rounded-2xl border-2 ${
                             p.rank === 1
-                              ? 'bg-gradient-to-b from-amber-500/25 to-dark-card border-amber-500/60'
-                              : 'bg-gradient-to-b from-dark-hover to-dark-card border-dark-border/60'
+                              ? 'bg-gradient-to-b from-amber-500/25 to-white/5 border-amber-500/60'
+                              : 'bg-gradient-to-b from-white/[0.08] to-white/5 border-white/10'
                           }`}
                         >
                           {showStageRank && p.rank !== null && (
                             <span className={`w-[clamp(2.75rem,4vw,4rem)] h-[clamp(2.75rem,4vw,4rem)] rounded-full font-black flex items-center justify-center text-[clamp(1rem,1.4vw,1.75rem)] ${
-                              p.rank === 1 ? 'bg-amber-500 text-amber-900' : 'bg-white/70 text-dark-bg'
+                              p.rank === 1 ? 'bg-amber-500 text-amber-900' : 'bg-white/70 text-[#0b0c15]'
                             }`}>
                               {p.rank}
                             </span>
@@ -424,16 +432,16 @@ export default function OBSTournament() {
                           key={p.id}
                           className={`flex flex-col items-center justify-center gap-2 px-3 py-4 rounded-2xl border-2 ${
                             isAdvLabel
-                              ? 'bg-gradient-to-b from-blue-500/25 to-dark-card border-blue-400/60 ring-4 ring-blue-400/20'
+                              ? 'bg-gradient-to-b from-blue-500/25 to-white/5 border-blue-400/60 ring-4 ring-blue-400/20'
                               : isEliminated
-                              ? 'bg-gradient-to-b from-red-500/10 to-dark-card border-red-500/40 opacity-80'
+                              ? 'bg-gradient-to-b from-red-500/10 to-white/5 border-red-500/40 opacity-80'
                               : showStageRank
                               ? p.rank === 1
-                                ? 'bg-gradient-to-b from-amber-500/25 to-dark-card border-amber-500/50'
+                                ? 'bg-gradient-to-b from-amber-500/25 to-white/5 border-amber-500/50'
                                 : p.rank === 2
-                                ? 'bg-gradient-to-b from-dark-hover to-dark-card border-dark-border/50'
-                                : 'bg-gradient-to-b from-green-500/15 to-dark-card border-green-500/40'
-                              : 'bg-gradient-to-b from-green-500/15 to-dark-card border-green-500/40'
+                                ? 'bg-gradient-to-b from-white/[0.08] to-white/5 border-white/10'
+                                : 'bg-gradient-to-b from-green-500/15 to-white/5 border-green-500/40'
+                              : 'bg-gradient-to-b from-green-500/15 to-white/5 border-green-500/40'
                           }`}
                         >
                           {isAdvLabel && (
@@ -449,8 +457,8 @@ export default function OBSTournament() {
                           {showStageRank && !isAdvLabel && !isEliminated && p.rank !== null && (
                             <span className={`w-[clamp(2.5rem,3.5vw,3.5rem)] h-[clamp(2.5rem,3.5vw,3.5rem)] rounded-full font-black flex items-center justify-center text-[clamp(0.875rem,1.2vw,1.5rem)] ${
                               p.rank === 1 ? 'bg-amber-500 text-amber-900' :
-                              p.rank === 2 ? 'bg-white/70 text-dark-bg' :
-                              'bg-dark-bg text-white/60'
+                              p.rank === 2 ? 'bg-white/70 text-[#0b0c15]' :
+                              'bg-[#0b0c15] text-white/60'
                             }`}>
                               {p.rank}
                             </span>
@@ -495,16 +503,22 @@ export default function OBSTournament() {
 
   if (activeStages.length === 0) {
     return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <p className="text-white/50 text-xl font-bold">等待赛事结果...</p>
+      <div className="min-h-screen bg-[#0b0c15] flex items-center justify-center relative overflow-hidden page-enter">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.10)_0%,transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(236,72,153,0.08)_0%,transparent_50%)]" />
+        </div>
+        <p className="text-white/50 text-xl font-bold relative z-10">等待赛事结果...</p>
       </div>
     )
   }
 
   return (
-    <div className="h-screen bg-dark-bg p-6 relative overflow-hidden flex flex-col">
+    <div className="h-screen bg-[#0b0c15] p-6 relative overflow-hidden flex flex-col">
       {/* Background ambient effect */}
       <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.10)_0%,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(236,72,153,0.08)_0%,transparent_50%)]" />
         <div className="absolute inset-0 bg-gradient-radial from-amber-500/10 via-transparent to-transparent" />
       </div>
 
@@ -512,7 +526,7 @@ export default function OBSTournament() {
       <div className="w-[90vw] mx-auto relative z-10 flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between shrink-0 mb-4">
-          <h1 className="text-5xl font-black text-white flex items-center gap-5">
+          <h1 className="text-5xl font-black title-gradient flex items-center gap-5">
             <Trophy className="text-amber-400" size={56} />
             {STAGE_LABELS[currentStage]}
           </h1>
@@ -524,11 +538,9 @@ export default function OBSTournament() {
                   setCurrentStage(s as TournamentStage)
                   setAnimateKey(k => k + 1)
                 }}
-                className={`px-5 py-3 rounded-xl text-lg font-bold transition-all ${
-                  s === currentStage
-                    ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white border border-blue-400/40 shadow-[0_2px_12px_rgba(59,130,246,0.25)]'
-                    : 'bg-dark-card text-white/60 border border-dark-border/50 hover:bg-dark-hover hover:text-white'
-                }`}
+                className={`${
+                  s === currentStage ? 'btn-primary' : 'btn-secondary'
+                } text-lg py-3 px-5 press-down`}
               >
                 {STAGE_LABELS[s]}
               </button>
@@ -536,7 +548,7 @@ export default function OBSTournament() {
             {activeStages.length > 1 && (
               <button
                 onClick={() => setViewMode('all')}
-                className="px-5 py-3 rounded-xl bg-dark-card text-white/70 border border-dark-border/50 hover:bg-dark-hover hover:text-white text-lg font-bold transition-all"
+                className="btn-secondary text-lg py-3 px-5 press-down"
               >
                 总览
               </button>
@@ -547,7 +559,7 @@ export default function OBSTournament() {
                   setViewMode('champion')
                   setAnimateKey(k => k + 1)
                 }}
-                className="px-5 py-3 rounded-xl bg-gradient-to-b from-amber-500 to-orange-700 text-white font-bold border border-amber-400/40 shadow-[0_2px_12px_rgba(245,158,11,0.25)] hover:from-amber-400 hover:to-orange-600 transition-all text-lg flex items-center gap-2"
+                className="px-5 py-3 rounded-xl bg-gradient-to-b from-amber-500 to-orange-700 text-white font-bold border border-amber-400/40 shadow-[0_2px_12px_rgba(245,158,11,0.25)] hover:from-amber-400 hover:to-orange-600 transition-all text-lg flex items-center gap-2 press-down btn-shimmer"
               >
                 <Crown size={18} /> 冠军
               </button>
@@ -566,14 +578,14 @@ export default function OBSTournament() {
                     key={p.id}
                     className={`flex-1 max-w-2xl flex flex-col items-center justify-center gap-4 px-10 rounded-3xl border-2 opacity-0 animate-[fadeSlideUp_0.6s_ease-out_both] ${
                       p.rank === 1
-                        ? 'bg-gradient-to-b from-amber-500/25 to-dark-card border-amber-500/60'
-                        : 'bg-gradient-to-b from-dark-hover to-dark-card border-dark-border/60'
+                        ? 'bg-gradient-to-b from-amber-500/25 to-white/5 border-amber-500/60'
+                        : 'bg-gradient-to-b from-white/[0.08] to-white/5 border-white/10'
                     }`}
                     style={{ animationDelay: `${index * 200}ms` }}
                   >
                     {showRank && p.rank !== null && (
                       <span className={`w-[clamp(3.5rem,5vw,5rem)] h-[clamp(3.5rem,5vw,5rem)] rounded-full font-black flex items-center justify-center text-[clamp(1.25rem,2vw,2.5rem)] ${
-                        p.rank === 1 ? 'bg-amber-500 text-amber-900' : 'bg-white/70 text-dark-bg'
+                        p.rank === 1 ? 'bg-amber-500 text-amber-900' : 'bg-white/70 text-[#0b0c15]'
                       }`}>
                         {p.rank}
                       </span>
@@ -614,16 +626,16 @@ export default function OBSTournament() {
                     key={p.id}
                     className={`flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-2xl border-2 opacity-0 animate-[fadeSlideUp_0.6s_ease-out_both] ${
                       isAdvancedLabel
-                        ? 'bg-gradient-to-b from-blue-500/25 to-dark-card border-blue-400/60 ring-4 ring-blue-400/20'
+                        ? 'bg-gradient-to-b from-blue-500/25 to-white/5 border-blue-400/60 ring-4 ring-blue-400/20'
                         : isEliminated
-                        ? 'bg-gradient-to-b from-red-500/10 to-dark-card border-red-500/40 opacity-80'
+                        ? 'bg-gradient-to-b from-red-500/10 to-white/5 border-red-500/40 opacity-80'
                         : showRank
                         ? p.rank === 1
-                          ? 'bg-gradient-to-b from-amber-500/25 to-dark-card border-amber-500/50'
+                          ? 'bg-gradient-to-b from-amber-500/25 to-white/5 border-amber-500/50'
                           : p.rank === 2
-                          ? 'bg-gradient-to-b from-dark-hover to-dark-card border-dark-border/50'
-                          : 'bg-gradient-to-b from-green-500/15 to-dark-card border-green-500/40'
-                        : 'bg-gradient-to-b from-green-500/15 to-dark-card border-green-500/40'
+                          ? 'bg-gradient-to-b from-white/[0.08] to-white/5 border-white/10'
+                          : 'bg-gradient-to-b from-green-500/15 to-white/5 border-green-500/40'
+                        : 'bg-gradient-to-b from-green-500/15 to-white/5 border-green-500/40'
                     }`}
                     style={{ animationDelay: `${index * 80}ms` }}
                   >
@@ -640,8 +652,8 @@ export default function OBSTournament() {
                     {showRank && !isAdvancedLabel && !isEliminated && p.rank !== null && (
                       <span className={`w-[clamp(2.75rem,4vw,4rem)] h-[clamp(2.75rem,4vw,4rem)] rounded-full font-black flex items-center justify-center text-[clamp(1rem,1.4vw,1.75rem)] ${
                         p.rank === 1 ? 'bg-amber-500 text-amber-900' :
-                        p.rank === 2 ? 'bg-white/70 text-dark-bg' :
-                        'bg-dark-bg text-white/60'
+                        p.rank === 2 ? 'bg-white/70 text-[#0b0c15]' :
+                        'bg-[#0b0c15] text-white/60'
                       }`}>
                         {p.rank}
                       </span>

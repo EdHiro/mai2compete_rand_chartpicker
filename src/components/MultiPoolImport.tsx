@@ -1,6 +1,7 @@
 import { useRef, useState, useMemo } from 'react'
 import { Upload, Trash2, Database, AlertCircle, CheckCircle, Square, Shuffle, Layers, Eye, Minus, Plus } from 'lucide-react'
 import { useSongStore, type Song, type Difficulty, type ChartType, type MultiDrawMode } from '@/store/songStore'
+import { cn } from '@/lib/utils'
 
 interface PoolImportResult {
   success: boolean
@@ -19,13 +20,13 @@ function PoolCheckbox({ checked, disabled, onChange }: { checked: boolean; disab
       className={`w-6 h-6 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
     >
       {checked ? (
-        <div className="w-5 h-5 rounded bg-purple-500 flex items-center justify-center border-2 border-purple-300">
+        <div className="w-5 h-5 rounded bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center border-2 border-white/40 shadow-lg shadow-violet-500/20">
           <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
       ) : (
-        <Square size={20} className={disabled ? 'text-slate-600' : 'text-slate-400'} />
+        <Square size={20} className={disabled ? 'text-white/20' : 'text-white/40'} />
       )}
     </button>
   )
@@ -126,13 +127,15 @@ export default function MultiPoolImport() {
   const totalPerPoolDraws = selectedPools.reduce((sum, pid) => sum + (perPoolDrawCounts[pid] || 1), 0)
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl border-2 border-purple-400 p-4 shadow-xl">
+    <div className="w-full max-w-lg mx-auto animate-enter">
+      <div className="glass-panel rounded-3xl p-5 shadow-2xl shadow-black/40">
         {/* 标题栏 */}
         <div className="flex items-center gap-2 mb-4">
-          <Database size={20} className="text-purple-400" />
-          <h3 className="font-rajdhani font-bold text-white text-lg">多谱面库管理</h3>
-          <span className="ml-auto text-xs text-purple-300 bg-purple-800/50 px-2 py-1 rounded">已选 {selectedPools.length} 个谱面库</span>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <Database size={18} className="text-white" />
+          </div>
+          <h3 className="font-rajdhani font-bold text-white text-lg animate-enter">多谱面库管理</h3>
+          <span className="ml-auto text-xs text-violet-200 chip">已选 {selectedPools.length} 个谱面库</span>
         </div>
 
         {/* 导入按钮 */}
@@ -146,7 +149,7 @@ export default function MultiPoolImport() {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full px-4 py-2 rounded-lg bg-gradient-to-b from-purple-600 to-purple-700 text-white font-bold border border-purple-400 hover:from-purple-500 hover:to-purple-600 transition-all duration-200 flex items-center justify-center gap-2"
+            className="btn-primary w-full press-down btn-shimmer"
           >
             <Upload size={18} />
             导入谱面库 (JSON)
@@ -155,15 +158,18 @@ export default function MultiPoolImport() {
 
         {/* 导入结果 */}
         {importResult && (
-          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
-            importResult.success ? 'bg-green-900/50 border border-green-500' : 'bg-red-900/50 border border-red-500'
-          }`}>
+          <div className={cn(
+            'mb-4 p-3 rounded-2xl flex items-center gap-2 backdrop-blur-md border',
+            importResult.success
+              ? 'bg-green-500/10 border-green-400/30'
+              : 'bg-rose-500/10 border-rose-400/30'
+          )}>
             {importResult.success ? (
               <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
             ) : (
-              <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
+              <AlertCircle size={16} className="text-rose-400 flex-shrink-0" />
             )}
-            <p className={`text-sm ${importResult.success ? 'text-green-200' : 'text-red-200'}`}>
+            <p className={cn('text-sm', importResult.success ? 'text-green-200' : 'text-rose-200')}>
               {importResult.message}
             </p>
           </div>
@@ -171,27 +177,29 @@ export default function MultiPoolImport() {
 
         {/* 抽取模式选择（仅多库模式且非单抽时显示） */}
         {drawMode === 'multi' && drawCount > 1 && selectedPools.length > 0 && (
-          <div className="mb-4 p-3 rounded-lg bg-slate-700/50 border border-slate-600">
-            <p className="text-slate-300 text-xs font-rajdhani font-semibold mb-2 uppercase tracking-wider">抽取模式</p>
+          <div className="mb-4 p-4 rounded-3xl glass-panel">
+            <p className="text-white/50 text-xs font-rajdhani font-semibold mb-2 uppercase tracking-wider">抽取模式</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setMultiDrawMode('mixed')}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 border-2 ${
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all duration-200 border',
                   multiDrawMode === 'mixed'
-                    ? 'bg-gradient-to-b from-purple-500 to-purple-600 border-purple-400 text-white'
-                    : 'bg-slate-600 border-slate-500 text-slate-300 hover:bg-slate-500'
-                }`}
+                    ? 'btn-primary border-transparent'
+                    : 'btn-secondary'
+                )}
               >
                 <Shuffle size={14} />
                 混合抽取
               </button>
               <button
                 onClick={() => setMultiDrawMode('perPool')}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 border-2 ${
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all duration-200 border',
                   multiDrawMode === 'perPool'
-                    ? 'bg-gradient-to-b from-purple-500 to-purple-600 border-purple-400 text-white'
-                    : 'bg-slate-600 border-slate-500 text-slate-300 hover:bg-slate-500'
-                }`}
+                    ? 'btn-primary border-transparent'
+                    : 'btn-secondary'
+                )}
               >
                 <Layers size={14} />
                 按库抽取
@@ -199,7 +207,7 @@ export default function MultiPoolImport() {
             </div>
 
             {/* 模式说明 */}
-            <p className="text-slate-400 text-xs mt-2">
+            <p className="text-white/40 text-xs mt-2">
               {multiDrawMode === 'mixed'
                 ? `从所有选中谱面库中随机混合抽取 ${drawCount} 张谱面`
                 : `从每个选中谱面库中分别抽取指定数量的谱面`
@@ -209,7 +217,7 @@ export default function MultiPoolImport() {
             {/* 按库抽取：数量设置 */}
             {multiDrawMode === 'perPool' && (
               <div className="mt-3 space-y-2">
-                <p className="text-slate-300 text-xs font-rajdhani">每库抽取数量（最多 {drawCount} 张）</p>
+                <p className="text-white/60 text-xs font-rajdhani">每库抽取数量（最多 {drawCount} 张）</p>
                 {selectedPools.map(poolId => {
                   const pool = poolId === 'main'
                     ? { id: 'main', name: '主库' }
@@ -217,13 +225,18 @@ export default function MultiPoolImport() {
                   if (!pool) return null
                   const count = perPoolDrawCounts[poolId] || 1
                   return (
-                    <div key={poolId} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50">
+                    <div key={poolId} className="flex items-center justify-between px-3 py-2 rounded-xl glass-panel">
                       <span className="text-white text-sm font-bold truncate">{pool.name}</span>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setPerPoolDrawCount(poolId, count - 1)}
                           disabled={count <= 1}
-                          className="w-7 h-7 rounded-lg bg-slate-600 text-white flex items-center justify-center hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          className={cn(
+                            'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
+                            count <= 1
+                              ? 'btn-secondary opacity-50 cursor-not-allowed'
+                              : 'btn-secondary hover:border-white/20'
+                          )}
                         >
                           <Minus size={14} />
                         </button>
@@ -231,7 +244,12 @@ export default function MultiPoolImport() {
                         <button
                           onClick={() => setPerPoolDrawCount(poolId, count + 1)}
                           disabled={count >= drawCount}
-                          className="w-7 h-7 rounded-lg bg-slate-600 text-white flex items-center justify-center hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          className={cn(
+                            'w-7 h-7 rounded-lg flex items-center justify-center transition-colors press-down',
+                            count >= drawCount
+                              ? 'btn-secondary opacity-50 cursor-not-allowed'
+                              : 'btn-secondary hover:border-white/20'
+                          )}
                         >
                           <Plus size={14} />
                         </button>
@@ -239,7 +257,7 @@ export default function MultiPoolImport() {
                     </div>
                   )
                 })}
-                <p className="text-slate-400 text-xs">
+                <p className="text-white/40 text-xs">
                   总计将抽取 {totalPerPoolDraws} 张谱面
                 </p>
               </div>
@@ -249,7 +267,7 @@ export default function MultiPoolImport() {
             <div className="mt-3">
               <button
                 onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center gap-1 text-purple-300 text-xs font-rajdhani hover:text-purple-200 transition-colors"
+                className="flex items-center gap-1 text-violet-300 text-xs font-rajdhani hover:text-violet-200 transition-colors"
               >
                 <Eye size={14} />
                 {showPreview ? '隐藏预览' : '显示预览'}
@@ -259,16 +277,17 @@ export default function MultiPoolImport() {
                   {preview.map(item => (
                     <div
                       key={item.poolId}
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
+                      className={cn(
+                        'flex items-center justify-between px-3 py-2 rounded-xl text-xs backdrop-blur-md border',
                         item.available >= item.count
-                          ? 'bg-green-900/30 border border-green-700/50'
+                          ? 'bg-green-500/10 border-green-400/30'
                           : item.available > 0
-                            ? 'bg-yellow-900/30 border border-yellow-700/50'
-                            : 'bg-red-900/30 border border-red-700/50'
-                      }`}
+                            ? 'bg-yellow-500/10 border-yellow-400/30'
+                            : 'bg-rose-500/10 border-rose-400/30'
+                      )}
                     >
-                      <span className="text-slate-200 font-bold">{item.poolName}</span>
-                      <span className="text-slate-300">
+                      <span className="text-white font-bold">{item.poolName}</span>
+                      <span className="text-white/60">
                         {multiDrawMode === 'perPool'
                           ? `抽 ${item.count} 张 / 可用 ${item.available} 张`
                           : `可用 ${item.available} 张`
@@ -285,7 +304,7 @@ export default function MultiPoolImport() {
         {/* 曲库列表 */}
         {(hasMainPool || songPools.length > 0) && (
           <div className="space-y-2">
-            <p className="text-blue-200 text-sm font-rajdhani font-semibold mb-2">
+            <p className="text-white/60 text-sm font-rajdhani font-semibold mb-2">
               曲库列表 ({(hasMainPool ? 1 : 0) + songPools.length})
             </p>
 
@@ -294,11 +313,12 @@ export default function MultiPoolImport() {
               <div
                 onClick={() => { if (drawMode === 'single') setActivePoolIdLocal('main') }}
                 role={drawMode === 'single' ? 'button' : undefined}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-2xl border transition-all duration-200 cursor-pointer',
                   (drawMode === 'multi' && selectedPools.includes('main')) || (drawMode === 'single' && activePoolId === 'main')
-                    ? 'bg-purple-800/30 border-purple-500 cursor-pointer'
-                    : 'bg-slate-700/50 border-slate-600'
-                }`}
+                    ? 'glass-panel border-violet-400/50 shadow-lg shadow-violet-500/10'
+                    : 'glass-panel hover:border-white/20'
+                )}
               >
                 {drawMode === 'multi' && (
                   <PoolCheckbox
@@ -307,18 +327,20 @@ export default function MultiPoolImport() {
                     onChange={() => togglePoolSelection('main')}
                   />
                 )}
-                <Database size={16} className="text-yellow-400 flex-shrink-0" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <Database size={14} className="text-white" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-bold">主库</p>
-                  <p className="text-blue-200 text-xs">{songs.length} 张谱面</p>
+                  <p className="text-white/40 text-xs">{songs.length} 张谱面</p>
                 </div>
                 {drawMode === 'multi' && selectedPools.includes('main') && multiDrawMode === 'perPool' && (
-                  <span className="text-purple-300 text-xs font-rajdhani">
+                  <span className="text-violet-300 text-xs font-rajdhani">
                     抽 {perPoolDrawCounts['main'] || 1} 张
                   </span>
                 )}
                 {drawMode === 'single' && activePoolId === 'main' && (
-                  <span className="ml-2 text-xs text-green-300">当前激活</span>
+                  <span className="ml-2 text-xs badge-success">当前激活</span>
                 )}
               </div>
             )}
@@ -329,11 +351,12 @@ export default function MultiPoolImport() {
                 key={pool.id}
                 onClick={() => { if (drawMode === 'single') setActivePoolIdLocal(pool.id) }}
                 role={drawMode === 'single' ? 'button' : undefined}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-2xl border transition-all duration-200 cursor-pointer hover-lift',
                   (drawMode === 'multi' && selectedPools.includes(pool.id)) || (drawMode === 'single' && activePoolId === pool.id)
-                    ? 'bg-purple-800/30 border-purple-500 cursor-pointer'
-                    : 'bg-slate-700/50 border-slate-600'
-                }`}
+                    ? 'glass-panel border-violet-400/50 shadow-lg shadow-violet-500/10'
+                    : 'glass-panel hover:border-white/20'
+                )}
               >
                 {drawMode === 'multi' && (
                   <PoolCheckbox
@@ -342,24 +365,26 @@ export default function MultiPoolImport() {
                     onChange={() => togglePoolSelection(pool.id)}
                   />
                 )}
-                <Database size={16} className="text-blue-400 flex-shrink-0" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                  <Database size={14} className="text-white" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-bold">{pool.name}</p>
-                  <p className="text-blue-200 text-xs">{pool.songs.length} 张谱面</p>
+                  <p className="text-white/40 text-xs">{pool.songs.length} 张谱面</p>
                 </div>
                 {drawMode === 'multi' && selectedPools.includes(pool.id) && multiDrawMode === 'perPool' && (
-                  <span className="text-purple-300 text-xs font-rajdhani">
+                  <span className="text-violet-300 text-xs font-rajdhani">
                     抽 {perPoolDrawCounts[pool.id] || 1} 张
                   </span>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleRemovePool(pool.id) }}
-                  className="p-1.5 rounded-lg bg-red-600/50 hover:bg-red-600 text-red-200 hover:text-white transition-all duration-200 flex-shrink-0"
+                  className="p-1.5 rounded-lg btn-danger"
                 >
                   <Trash2 size={14} />
                 </button>
                 {drawMode === 'single' && activePoolId === pool.id && (
-                  <span className="ml-2 text-xs text-green-300">当前激活</span>
+                  <span className="ml-2 text-xs badge-success">当前激活</span>
                 )}
               </div>
             ))}

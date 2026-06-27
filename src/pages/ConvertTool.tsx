@@ -214,14 +214,14 @@ export default function ConvertTool() {
   }, [items, outName])
 
   return (
-    <div className="min-h-screen bg-dark-bg text-white relative">
+    <div className="min-h-screen text-white relative overflow-hidden page-enter">
       {/* Hero 背景装饰 */}
       <div className="absolute inset-0 hero-grid pointer-events-none opacity-40" />
       <div className="absolute inset-0 radial-glow pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Header 卡片 */}
-        <div className="glass-panel-strong rounded-2xl border border-dark-border/50 shadow-card overflow-hidden mb-6">
+        <div className="glass-panel rounded-3xl overflow-hidden mb-6">
           <div className="top-gradient-bar" />
           <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -229,7 +229,7 @@ export default function ConvertTool() {
                 <FileJson size={22} className="text-white" />
                 <Sparkles size={12} className="absolute -top-1 -right-1 text-yellow-300" />
               </div>
-              <div>
+              <div className="animate-enter-scale">
                 <h1 className="text-xl sm:text-2xl font-black font-orbitron title-gradient tracking-wider leading-tight">
                   转换工具
                 </h1>
@@ -247,7 +247,7 @@ export default function ConvertTool() {
               />
               <button
                 onClick={() => fileRef.current?.click()}
-                className="btn-ghost flex items-center gap-2"
+                className="btn-secondary flex items-center gap-2 press-down"
               >
                 <Upload size={16} />
                 <span className="font-rajdhani">上传 JSON</span>
@@ -259,11 +259,12 @@ export default function ConvertTool() {
         {/* 主体双列布局 */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* 左列：输入区 */}
-          <section className="lg:col-span-2 space-y-4">
-            <div className="glass-panel rounded-2xl border border-dark-border/50 shadow-card overflow-hidden">
-              <div className="px-5 py-3 border-b border-dark-border/40 flex items-center justify-between">
+          <section className="lg:col-span-2 space-y-4 stagger-children">
+            <div className="glass-panel rounded-3xl overflow-hidden">
+              <div className="top-gradient-bar" />
+              <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
                 <h2 className="font-orbitron font-bold text-sm text-white/90 tracking-wider flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                   粘贴 JSON 源数据
                 </h2>
                 <span className="chip font-rajdhani">{inputText.length} 字符</span>
@@ -273,18 +274,19 @@ export default function ConvertTool() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder='例如：[{"name":"歌曲","difficulty":"EXPERT","level":12}]'
-                  className="input-field font-mono text-xs leading-relaxed resize-y min-h-[280px]"
+                  className="input-refined font-mono text-xs leading-relaxed resize-y min-h-[280px]"
                   spellCheck={false}
                 />
               </div>
             </div>
 
             {/* 操作行 */}
-            <div className="glass-panel rounded-2xl border border-dark-border/50 shadow-card p-4">
+            <div className="glass-panel rounded-3xl p-4">
+              <div className="top-gradient-bar" />
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleConvert}
-                  className="btn-primary-2 w-full flex items-center justify-center gap-2 text-sm"
+                  className="btn-primary w-full flex items-center justify-center gap-2 text-sm btn-shimmer press-down"
                 >
                   <ArrowRightLeft size={16} />
                   <span className="font-rajdhani">执行转换</span>
@@ -295,7 +297,7 @@ export default function ConvertTool() {
                   <input
                     value={outName}
                     onChange={(e) => setOutName(e.target.value)}
-                    className="input-field py-2 text-sm flex-1"
+                    className="input-refined py-2 text-sm flex-1"
                     placeholder="converted-songlist.json"
                   />
                 </div>
@@ -303,7 +305,7 @@ export default function ConvertTool() {
                 <button
                   onClick={handleDownload}
                   disabled={items.length === 0}
-                  className="btn-ghost w-full flex items-center justify-center gap-2 text-sm"
+                  className="btn-secondary w-full flex items-center justify-center gap-2 text-sm press-down"
                 >
                   <Download size={16} />
                   <span className="font-rajdhani">下载 JSON</span>
@@ -323,13 +325,14 @@ export default function ConvertTool() {
             )}
 
             {/* 摘要 chips */}
-            <div className="glass-panel rounded-2xl border border-dark-border/50 shadow-card p-4 flex flex-wrap items-center gap-2">
+            <div className="glass-panel rounded-3xl p-4 flex flex-wrap items-center gap-2">
+              <div className="top-gradient-bar" />
               <div className="flex items-center gap-2 mr-2">
-                <Music2 size={16} className="text-purple-300" />
+                <Music2 size={16} className="text-violet-300" />
                 <span className="font-orbitron font-bold text-sm text-white/90 tracking-wider">曲库摘要</span>
               </div>
               <span className="chip">
-                <span className="text-blue-300">●</span> 共 <b className="text-white mx-1">{items.length}</b> 条记录
+                <span className="text-cyan-300">●</span> 共 <b className="text-white mx-1">{items.length}</b> 条记录
               </span>
               {items.length > 30 && (
                 <span className="chip">仅预览前 30 条</span>
@@ -341,11 +344,11 @@ export default function ConvertTool() {
 
             {/* 预览卡片网格 */}
             {items.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 card-grid">
                 {items.slice(0, 30).map((it) => (
-                  <div key={it.id} className="surface-card">
+                  <div key={it.id} className="surface-card hover-lift">
                     {/* 顶部条 */}
-                    <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-70" />
+                    <div className="h-1 bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500 opacity-70" />
 
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-2 mb-3">

@@ -53,38 +53,36 @@ export default function CheckInPanel({ checkinNames }: CheckInPanelProps) {
   const existingPlayers = stages.n216.players
 
   return (
-    <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+    <div className="glass-panel rounded-3xl p-6 border border-white/10 animate-enter">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
         <QrCode className="text-cyan-400" size={22} />
         选手扫码签到
       </h3>
 
-      <p className="text-sm text-gray-400 mb-4">
+      <p className="text-sm text-white/50 mb-4">
         选手扫描二维码后，在签到页输入自己的名字完成签到。签到数据通过 WebSocket 实时同步。
       </p>
 
       {/* 签到状态 */}
-      <div className="mb-4 p-3 bg-gray-900/50 rounded-xl border border-gray-700 flex items-center justify-between">
+      <div className="mb-4 p-3 glass-panel rounded-2xl border border-white/10 flex items-center justify-between hover-lift">
         <div className="flex items-center gap-2">
-          <Users size={16} className="text-gray-400" />
-          <span className="text-sm text-gray-300">已签到人数</span>
+          <Users size={16} className="text-white/40" />
+          <span className="text-sm text-white/70">已签到人数</span>
         </div>
-        <span className="text-lg font-bold text-cyan-400">{checkinCount}</span>
+        <span className="text-lg font-bold text-cyan-300">{checkinCount}</span>
       </div>
 
       {/* 签到选手列表 */}
       {checkinNames.length > 0 && (
-        <div className="mb-4 p-3 bg-gray-900/50 rounded-xl border border-gray-700">
-          <div className="flex flex-wrap gap-2 mb-3">
+        <div className="mb-4 p-3 glass-panel rounded-2xl border border-white/10 hover-lift">
+          <div className="flex flex-wrap gap-2 mb-3 stagger-children">
             {checkinNames.map((name, idx) => {
               const isExisting = existingPlayers.some((p) => p.name === name)
               return (
                 <span
                   key={idx}
-                  className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${
-                    isExisting
-                      ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                      : 'bg-cyan-600/30 text-cyan-300 border border-cyan-500/30'
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                    isExisting ? 'badge-success' : 'badge-info'
                   }`}
                 >
                   {isExisting && <CheckCircle2 size={10} />}
@@ -99,14 +97,14 @@ export default function CheckInPanel({ checkinNames }: CheckInPanelProps) {
       <div className="flex gap-3 mb-4">
         <button
           onClick={() => setShowQR(!showQR)}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:from-cyan-600 hover:to-blue-700 transition-all flex items-center justify-center gap-2"
+          className="flex-1 btn-primary press-down btn-shimmer"
         >
           <QrCode size={18} />
           {showQR ? '隐藏二维码' : '显示签到二维码'}
         </button>
         <button
           onClick={handleApplyCheckin}
-          className="px-4 py-2.5 rounded-xl bg-green-600/30 text-green-300 border border-green-500/30 hover:bg-green-600/50 transition-colors font-bold flex items-center gap-2"
+          className="btn-secondary press-down"
           disabled={checkinCount === 0}
         >
           应用签到名单
@@ -115,14 +113,14 @@ export default function CheckInPanel({ checkinNames }: CheckInPanelProps) {
 
       {/* QR Code Modal */}
       {showQR && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700 max-w-sm w-full text-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel rounded-3xl p-8 border border-white/10 max-w-sm w-full text-center">
             <h3 className="text-xl font-bold text-white mb-2">扫码签到</h3>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="text-sm text-white/50 mb-6">
               使用手机扫描二维码，在签到页输入自己的名字
             </p>
 
-            <div className="bg-white p-6 rounded-xl inline-block mb-4">
+            <div className="bg-white p-6 rounded-2xl inline-block mb-4">
               <QRCodeSVG
                 value={checkinUrl}
                 size={220}
@@ -137,7 +135,7 @@ export default function CheckInPanel({ checkinNames }: CheckInPanelProps) {
                 type="text"
                 readOnly
                 value={checkinUrl}
-                className="flex-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-600 text-gray-400 text-xs font-mono focus:outline-none"
+                className="input-refined flex-1 text-xs font-mono"
               />
               <button
                 onClick={() => {
@@ -145,7 +143,7 @@ export default function CheckInPanel({ checkinNames }: CheckInPanelProps) {
                   setCopied(true)
                   setTimeout(() => setCopied(false), 2000)
                 }}
-                className="px-3 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors text-sm flex items-center gap-1"
+                className="btn-secondary text-xs px-3 py-2 press-down"
               >
                 {copied ? '✓' : <Copy size={14} />}
               </button>
@@ -153,7 +151,7 @@ export default function CheckInPanel({ checkinNames }: CheckInPanelProps) {
 
             <button
               onClick={() => setShowQR(false)}
-              className="w-full px-4 py-2.5 rounded-xl bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors font-bold"
+              className="btn-secondary w-full press-down"
             >
               关闭
             </button>

@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border min-w-[280px] max-w-[400px] animate-fadeIn glass-panel-strong`}
+            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border min-w-[280px] max-w-[400px] animate-enter-right glass-panel`}
             style={{
               borderColor:
                 toast.type === 'success'

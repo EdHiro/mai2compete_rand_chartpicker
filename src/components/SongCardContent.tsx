@@ -37,25 +37,44 @@ const IMAGE_CACHE = (() => {
 function SongCardContent({ song, className = '' }: SongCardContentProps) {
   const titleContainerRef = useRef<HTMLDivElement>(null)
   const titleTextRef = useRef<HTMLParagraphElement>(null)
+  const authorContainerRef = useRef<HTMLDivElement>(null)
+  const authorTextRef = useRef<HTMLParagraphElement>(null)
   const [shouldScroll, setShouldScroll] = useState(false)
   const [animationDuration, setAnimationDuration] = useState(10)
+  const [authorShouldScroll, setAuthorShouldScroll] = useState(false)
+  const [authorAnimationDuration, setAuthorAnimationDuration] = useState(10)
 
   useEffect(() => {
     if (titleContainerRef.current && titleTextRef.current) {
       const containerWidth = titleContainerRef.current.clientWidth
       const textWidth = titleTextRef.current.scrollWidth
-      
+
       const needsScroll = textWidth > containerWidth
       setShouldScroll(needsScroll)
 
       if (needsScroll) {
-        const singleItemWidth = textWidth + 64 
-        const scrollSpeed = 80 
+        const singleItemWidth = textWidth + 64
+        const scrollSpeed = 80
         const calculatedDuration = Math.max(singleItemWidth / scrollSpeed, 4)
         setAnimationDuration(calculatedDuration)
       }
     }
-  }, [song.name])
+
+    if (authorContainerRef.current && authorTextRef.current) {
+      const containerWidth = authorContainerRef.current.clientWidth
+      const textWidth = authorTextRef.current.scrollWidth
+
+      const needsScroll = textWidth > containerWidth
+      setAuthorShouldScroll(needsScroll)
+
+      if (needsScroll) {
+        const singleItemWidth = textWidth + 64
+        const scrollSpeed = 80
+        const calculatedDuration = Math.max(singleItemWidth / scrollSpeed, 4)
+        setAuthorAnimationDuration(calculatedDuration)
+      }
+    }
+  }, [song.name, song.author])
 
   // 使用预计算的图片缓存，避免运行时重复计算
   const { chartTypeText, chartTypeColor, cardBg, lvBg, levelIcon } = useMemo(() => {
@@ -159,7 +178,28 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
 
       {/* Author line under title strip */}
       <div className="absolute top-[397px] left-[18px] right-[18px] z-25 text-center pointer-events-none">
-        <p className="card-author">{song.author}</p>
+        <div ref={authorContainerRef} className="w-full overflow-hidden h-[22px]">
+          <div
+            className={authorShouldScroll ? 'animate-marquee' : 'flex justify-center'}
+            style={authorShouldScroll ? { animationDuration: `${authorAnimationDuration}s` } : {}}
+          >
+            <p
+              ref={authorTextRef}
+              className={`card-author whitespace-nowrap ${authorShouldScroll ? 'marquee-text' : ''}`}
+            >
+              {song.author}
+            </p>
+
+            {authorShouldScroll && (
+              <p
+                className="card-author whitespace-nowrap marquee-text"
+                aria-hidden="true"
+              >
+                {song.author}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Left purple difficulty label */}

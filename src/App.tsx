@@ -7,9 +7,13 @@ import OBSTournament from "@/components/OBSTournament";
 import TournamentControl from "@/components/TournamentControl";
 import CheckInPage from "@/pages/CheckInPage";
 import PlayerTerminal from "@/components/PlayerTerminal";
+import CountdownDisplay from "@/pages/CountdownDisplay";
+import RefereePage from "@/pages/RefereePage";
+import BracketPage from "@/pages/BracketPage";
+import UpcomingPage from "@/pages/UpcomingPage";
 import { ToastProvider } from "@/components/Toast";
 
-function getPageFromPath(): 'home' | 'obs' | 'selector' | 'convert' | 'tournament' | 'obsTournament' | 'checkin' | 'player' {
+function getPageFromPath(): 'home' | 'obs' | 'selector' | 'convert' | 'tournament' | 'obsTournament' | 'checkin' | 'player' | 'countdown' | 'referee' | 'bracket' | 'upcoming' {
   const path = window.location.pathname;
   if (path === "/obs" || window.location.search.includes("obs=1")) {
     return 'obs';
@@ -21,6 +25,14 @@ function getPageFromPath(): 'home' | 'obs' | 'selector' | 'convert' | 'tournamen
     return 'convert';
   } else if (path === '/tournament') {
     return 'tournament';
+  } else if (path === '/countdown' || window.location.search.includes("countdown=1")) {
+    return 'countdown';
+  } else if (path === '/referee' || window.location.search.includes("referee=1")) {
+    return 'referee';
+  } else if (path === '/bracket' || window.location.search.includes("bracket=1")) {
+    return 'bracket';
+  } else if (path === '/upcoming' || window.location.search.includes("upcoming=1")) {
+    return 'upcoming';
   } else if (window.location.search.includes("checkin=1")) {
     return 'checkin';
   } else if (window.location.search.includes("player=1") || window.location.search.includes("player=")) {
@@ -41,7 +53,7 @@ function getInitialSelectorState(): { multiMode: boolean; playerName: string | n
 }
 
 export default function App() {
-  const [page, setPage] = useState<'home' | 'obs' | 'selector' | 'convert' | 'tournament' | 'obsTournament' | 'checkin' | 'player'>(getPageFromPath);
+  const [page, setPage] = useState<'home' | 'obs' | 'selector' | 'convert' | 'tournament' | 'obsTournament' | 'checkin' | 'player' | 'countdown' | 'referee' | 'bracket' | 'upcoming'>(getPageFromPath);
   const initialSelectorState = getInitialSelectorState();
 
   useEffect(() => {
@@ -55,7 +67,7 @@ export default function App() {
   const handleSwitchPage = useCallback((target: 'home' | 'selector' | 'convert' | 'tournament') => {
     const path = target === 'selector' ? '/selector' : target === 'convert' ? '/convert' : target === 'tournament' ? '/tournament' : '/';
     window.history.pushState({}, '', path);
-    setPage(target as any);
+    setPage(target);
   }, []);
 
   return (
@@ -74,8 +86,12 @@ export default function App() {
       {page === 'obs' && <OBSDisplay />}
       {page === 'obsTournament' && <OBSTournament />}
       {page === 'convert' && <ConvertTool />}
+      {page === 'countdown' && <CountdownDisplay />}
       {page === 'checkin' && <CheckInPage />}
       {page === 'player' && <PlayerTerminal />}
+      {page === 'referee' && <RefereePage />}
+      {page === 'bracket' && <BracketPage />}
+      {page === 'upcoming' && <UpcomingPage />}
     </ToastProvider>
   );
 }

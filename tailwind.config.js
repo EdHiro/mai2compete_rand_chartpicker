@@ -16,14 +16,24 @@ export default {
       },
       colors: {
         dark: {
-          bg: '#0f1729',
-          card: '#1a2744',
-          hover: '#243356',
-          border: '#2a3f5f',
+          bg: '#0b0c15',
+          card: 'rgba(255,255,255,0.05)',
+          hover: 'rgba(255,255,255,0.08)',
+          border: 'rgba(255,255,255,0.10)',
         },
         neon: {
           pink: '#ff4488',
           cyan: '#00ddff',
+        },
+        fluid: {
+          bg: '#0b0c15',
+          card: 'rgba(255,255,255,0.05)',
+          border: 'rgba(255,255,255,0.10)',
+          cyan: '#22d3ee',
+          violet: '#a78bfa',
+          pink: '#f472b6',
+          amber: '#fbbf24',
+          rose: '#fb7185',
         },
         difficulty: {
           basic: '#22c55e',
@@ -97,6 +107,9 @@ export default {
         'glow-pulse': 'glowPulse 3s ease-in-out infinite',
         'status-dot': 'statusDot 1.6s ease-in-out infinite',
         'gradient-shift': 'gradientShift 8s ease infinite',
+        'fluid-float': 'fluidFloat 12s ease-in-out infinite',
+        'fluid-float-reverse': 'fluidFloat 14s ease-in-out infinite reverse',
+        'scale-in': 'scaleIn 0.7s cubic-bezier(0.16,1,0.3,1) both',
       },
       keyframes: {
         pulseSoft: {
@@ -118,6 +131,15 @@ export default {
         gradientShift: {
           '0%, 100%': { backgroundPosition: '0% 50%' },
           '50%': { backgroundPosition: '100% 50%' },
+        },
+        fluidFloat: {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+          '33%': { transform: 'translate(30px, -40px) scale(1.05)' },
+          '66%': { transform: 'translate(-20px, 30px) scale(0.95)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.85) translateY(20px)', filter: 'blur(10px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)', filter: 'blur(0)' },
         },
       },
     },

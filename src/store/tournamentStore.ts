@@ -65,11 +65,15 @@ export interface StageSong {
 }
 
 // 分组/对阵
+export type MatchGroupStatus = 'pending' | 'playing' | 'completed'
+
 export interface MatchGroup {
   id: string
   name: string // 如"第1组"、"上半区"、"1v3"
   playerIds: string[]
   songs: StageSong[] // 该组比赛用曲（覆盖阶段级别）
+  completed?: boolean // 该组对局是否已完成
+  status?: MatchGroupStatus // 对局进行状态
 }
 
 // 赛事阶段数据
@@ -128,6 +132,9 @@ export interface TournamentState {
 
   // 更新单个选手信息
   updatePlayer: (stage: TournamentStage, playerId: string, data: Partial<Omit<TournamentPlayer, 'id'>>) => void
+
+  // 更新选手签到状态（不受阶段锁定限制）
+  updatePlayerCheckIn: (stage: TournamentStage, playerId: string, checkedIn: boolean) => void
 
   // 删除单个选手
   removePlayer: (stage: TournamentStage, playerId: string) => void
@@ -217,12 +224,15 @@ export interface TournamentState {
   removeStageSong: (stage: TournamentStage, songId: string) => void
 
   // 分组管理
-  createGroups16to8: () => void
-  shuffleGroups8to4: () => void
-  createGroupsSemi: () => void
+  createGroupsN216: () => { success: boolean; message?: string }
+  createGroups16to8: () => { success: boolean; message?: string }
+  shuffleGroups8to4: () => { success: boolean; message?: string }
+  createGroupsSemi: () => { success: boolean; message?: string }
   setGroupSongs: (stage: TournamentStage, groupId: string, songs: StageSong[]) => void
   addGroupSong: (stage: TournamentStage, groupId: string, song: Song | null, label: string) => void
   removeGroupSong: (stage: TournamentStage, groupId: string, songId: string) => void
+  setGroupCompleted: (stage: TournamentStage, groupId: string, completed: boolean) => void
+  setGroupStatus: (stage: TournamentStage, groupId: string, status: MatchGroupStatus) => void
 }
 
 function generateId(): string {
@@ -475,7 +485,20 @@ function buildRankingStateUpdate(
       advanced: false,
       eliminated: false,
     }))
-    stagesUpdate[nextStage] = { ...stagesUpdate[nextStage], players: nextPlayers }
+    const nextGroups: MatchGroup[] =
+      nextStage === 'final' && nextPlayers.length === 2
+        ? [
+            {
+              id: `final-${Date.now()}`,
+              name: '决赛',
+              playerIds: nextPlayers.map((p) => p.id),
+              songs: [],
+              completed: false,
+              status: 'pending',
+            },
+          ]
+        : []
+    stagesUpdate[nextStage] = { ...stagesUpdate[nextStage], players: nextPlayers, groups: nextGroups }
   }
 
   return { stages: stagesUpdate }
@@ -484,7 +507,7 @@ function buildRankingStateUpdate(
 const persisted = loadFromLocalStorage()
 
 export const useTournamentStore = create<TournamentState>((set, get) => ({
-  stages: persisted?.stages as any || defaultStages,
+  stages: (persisted?.stages as Record<TournamentStage, TournamentStageData>) || defaultStages,
   currentStage: (persisted?.currentStage as TournamentStage) || 'n216',
   isTournamentStarted: persisted?.isTournamentStarted || false,
 
@@ -557,6 +580,21 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         return p
       })
 
+      return {
+        stages: {
+          ...state.stages,
+          [stage]: { ...stageData, players },
+        },
+      }
+    })
+  },
+
+  updatePlayerCheckIn: (stage, playerId, checkedIn) => {
+    set((state) => {
+      const stageData = state.stages[stage as TournamentStage]
+      const players = stageData.players.map((p) =>
+        p.id === playerId ? { ...p, checkedIn } : p
+      )
       return {
         stages: {
           ...state.stages,
@@ -912,10 +950,62 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   // ========== 分组管理 ==========
 
+  createGroupsN216: () => {
+    const result = { success: false, message: '' }
+    set((state) => {
+      const stageData = state.stages['n216']
+      if (stageData.players.length === 0) {
+        result.message = '当前阶段没有选手'
+        return state
+      }
+      if (stageData.players.length < 16) {
+        result.message = `N进16 至少需要 16 名选手，当前有 ${stageData.players.length} 名`
+        return state
+      }
+
+      // 按种子排序，未设置种子的放在末尾
+      const players = [...stageData.players].sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
+
+      // 两人为一组：高种子 vs 低种子
+      const groups: MatchGroup[] = []
+      const total = players.length
+      for (let i = 0; i < total / 2; i++) {
+        const high = players[i]
+        const low = players[total - 1 - i]
+        if (high && low) {
+          groups.push({
+            id: `group-n216-${i + 1}`,
+            name: `第${i + 1}组 (${high.name} vs ${low.name})`,
+            playerIds: [high.id, low.id],
+            songs: [],
+          })
+        }
+      }
+
+      result.success = true
+      result.message = `已按种子生成 ${groups.length} 个两人小组，课题曲统一`
+      return {
+        stages: {
+          ...state.stages,
+          n216: { ...stageData, groups },
+        },
+      }
+    })
+    return result
+  },
+
   createGroups16to8: () => {
+    const result = { success: false, message: '' }
     set((state) => {
       const stageData = state.stages['16to8']
-      if (stageData.players.length === 0) return state
+      if (stageData.players.length === 0) {
+        result.message = '当前阶段没有选手'
+        return state
+      }
+      if (stageData.players.length !== 16) {
+        result.message = `16进8 需要 16 名选手，当前有 ${stageData.players.length} 名`
+        return state
+      }
 
       const players = [...stageData.players].sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
       const groups: MatchGroup[] = []
@@ -933,6 +1023,8 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         }
       }
 
+      result.success = true
+      result.message = `已生成 ${groups.length} 组对阵`
       return {
         stages: {
           ...state.stages,
@@ -940,12 +1032,21 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         },
       }
     })
+    return result
   },
 
   shuffleGroups8to4: () => {
+    const result = { success: false, message: '' }
     set((state) => {
       const stageData = state.stages['8to4']
-      if (stageData.players.length === 0) return state
+      if (stageData.players.length === 0) {
+        result.message = '当前阶段没有选手'
+        return state
+      }
+      if (stageData.players.length !== 8) {
+        result.message = `8进4 需要 8 名选手，当前有 ${stageData.players.length} 名`
+        return state
+      }
 
       const players = [...stageData.players].sort(() => Math.random() - 0.5)
       const groupA = players.slice(0, 4)
@@ -966,6 +1067,8 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         },
       ]
 
+      result.success = true
+      result.message = '已随机分为上下半区'
       return {
         stages: {
           ...state.stages,
@@ -973,12 +1076,21 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         },
       }
     })
+    return result
   },
 
   createGroupsSemi: () => {
+    const result = { success: false, message: '' }
     set((state) => {
       const stageData = state.stages['semi']
-      if (stageData.players.length === 0) return state
+      if (stageData.players.length === 0) {
+        result.message = '当前阶段没有选手'
+        return state
+      }
+      if (stageData.players.length !== 4) {
+        result.message = `半决赛需要 4 名选手，当前有 ${stageData.players.length} 名`
+        return state
+      }
 
       const players = [...stageData.players].sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
       const groups: MatchGroup[] = []
@@ -1000,6 +1112,8 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         })
       }
 
+      result.success = true
+      result.message = '已生成半决赛对阵'
       return {
         stages: {
           ...state.stages,
@@ -1007,6 +1121,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         },
       }
     })
+    return result
   },
 
   setGroupSongs: (stage, groupId, songs) => {
@@ -1014,6 +1129,38 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       const stageData = state.stages[stage]
       const groups = stageData.groups.map((g) =>
         g.id === groupId ? { ...g, songs } : g
+      )
+      return {
+        stages: {
+          ...state.stages,
+          [stage]: { ...stageData, groups },
+        },
+      }
+    })
+  },
+
+  setGroupCompleted: (stage, groupId, completed) => {
+    set((state) => {
+      const stageData = state.stages[stage]
+      const groups = stageData.groups.map((g) =>
+        g.id === groupId ? { ...g, completed } : g
+      )
+      return {
+        stages: {
+          ...state.stages,
+          [stage]: { ...stageData, groups },
+        },
+      }
+    })
+  },
+
+  setGroupStatus: (stage, groupId, status) => {
+    set((state) => {
+      const stageData = state.stages[stage]
+      const groups = stageData.groups.map((g) =>
+        g.id === groupId
+          ? { ...g, status, completed: status === 'completed' }
+          : g
       )
       return {
         stages: {

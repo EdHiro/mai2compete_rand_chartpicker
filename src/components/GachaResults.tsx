@@ -104,17 +104,17 @@ interface GachaResultsProps {
 
 function StatusBadge({ phase, revealedCount, total }: { phase: string; revealedCount: number; total: number }) {
   const configs: Record<string, { text: string; color: string; icon: React.ReactNode; pulse?: boolean }> = {
-    building: { text: '卡片生成中…', color: 'border-blue-500/30 text-blue-300', icon: <Sparkles size={14} />, pulse: true },
-    revealing: { text: `开卡中… ${revealedCount} / ${total}`, color: 'border-yellow-500/30 text-yellow-300', icon: <Sparkles size={14} />, pulse: true },
-    done: { text: '全部揭晓！', color: 'border-green-500/30 text-green-300', icon: <Sparkles size={14} /> },
-    exiting: { text: '卡片回收中…', color: 'border-amber-500/30 text-amber-300', icon: <RefreshCw size={14} /> },
+    building: { text: '卡片生成中…', color: 'border-cyan-500/30 text-cyan-300', icon: <Sparkles size={14} />, pulse: true },
+    revealing: { text: `开卡中… ${revealedCount} / ${total}`, color: 'border-amber-500/30 text-amber-300', icon: <Sparkles size={14} />, pulse: true },
+    done: { text: '全部揭晓！', color: 'border-emerald-500/30 text-emerald-300', icon: <Sparkles size={14} /> },
+    exiting: { text: '卡片回收中…', color: 'border-rose-500/30 text-rose-300', icon: <RefreshCw size={14} /> },
     idle: { text: '准备就绪', color: 'border-white/10 text-white/50', icon: <Sparkles size={14} /> },
   }
   const config = configs[phase] || configs.idle
 
   return (
     <div className={cn(
-      'inline-flex items-center gap-2 px-4 py-2 rounded-xl glass-panel-strong border',
+      'inline-flex items-center gap-2 px-4 py-2 rounded-2xl glass-panel border backdrop-blur-2xl',
       config.color,
       config.pulse && 'animate-pulse'
     )}>
@@ -142,6 +142,21 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
   const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([])
   const autoSentDrawKeyRef = useRef<number | null>(null)
 
+  const isRandomLabel = (label?: string) => label === '随机1' || label === '随机2'
+
+  // 将 2+2 用曲按 自选1/随机1/自选2/随机2 排序
+  const sortStageSongs = (songs: StageSong[]): StageSong[] => {
+    const order = ['自选1', '随机1', '自选2', '随机2']
+    return [...songs].sort((a, b) => {
+      const idxA = order.indexOf(a.label)
+      const idxB = order.indexOf(b.label)
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB
+      if (idxA !== -1) return -1
+      if (idxB !== -1) return 1
+      return 0
+    })
+  }
+
   // 将抽卡结果写入本地赛事 store 并广播到其他端
   const syncSongsToStage = useCallback((targetStage: TournamentStage, songs: Song[], targetGroupId?: string) => {
     if (!targetStage || songs.length === 0) return
@@ -154,18 +169,24 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
 
     const payloadSongs = songs.map((song, idx) => ({
       song,
-      label: `课题曲${idx + 1}`,
+      label: songs.length === 2 ? `随机${idx + 1}` : `课题曲${idx + 1}`,
     }))
-    const stageSongs: StageSong[] = payloadSongs.map((s, idx) => ({
+    const newRandomSongs: StageSong[] = payloadSongs.map((s, idx) => ({
       id: `gacha-song-${Date.now()}-${idx}`,
       song: s.song,
       label: s.label,
     }))
 
     if (groupId && stageData?.groups?.length > 0) {
-      store.setGroupSongs(targetStage, groupId, stageSongs)
+      const group = stageData.groups.find(g => g.id === groupId)
+      // 保留已有的非随机曲（自选曲/玩家名曲），避免覆盖
+      const existingNonRandom = (group?.songs || []).filter(s => !isRandomLabel(s.label))
+      const merged = sortStageSongs([...existingNonRandom, ...newRandomSongs])
+      store.setGroupSongs(targetStage, groupId, merged)
     } else {
-      store.setStageSongs(targetStage, stageSongs)
+      const existingNonRandom = (stageData?.songs || []).filter(s => !isRandomLabel(s.label))
+      const merged = sortStageSongs([...existingNonRandom, ...newRandomSongs])
+      store.setStageSongs(targetStage, merged)
     }
 
     broadcastSyncEvent('stageSongs', {
@@ -296,14 +317,20 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
   if (songsToShow.length === 0 && selectedSongs.length === 0) return null
 
   return (
-    <section className="py-8 px-4">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <section className="py-8 px-4 relative page-enter">
+      {/* 背景光晕 */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-[60vw] h-[60vw] rounded-full bg-violet-500/8 blur-[120px] animate-fluid-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-[50vw] h-[50vw] rounded-full bg-cyan-500/8 blur-[120px] animate-fluid-float-reverse" />
+      </div>
+
+      <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         {/* Command bar */}
-        <div className="glass-panel-strong rounded-2xl p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
+        <div className="glass-panel rounded-3xl p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge phase={phase} revealedCount={revealedCount} total={songsToShow.length} />
             {autoSyncStage && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-300 text-xs font-bold">
+              <div className="badge-success whitespace-nowrap">
                 <CheckCircle2 size={12} />
                 已同步至 {STAGE_LABELS[autoSyncStage]}{autoSyncGroup && ` · ${autoSyncGroup}`}
               </div>
@@ -315,7 +342,7 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
               onClick={handleReset}
               disabled={phase === 'exiting'}
               className={cn(
-                'btn-secondary-2 text-xs sm:text-sm',
+                'btn-secondary text-xs sm:text-sm press-down btn-shimmer',
                 phase === 'exiting' && 'opacity-50 cursor-not-allowed'
               )}
             >
@@ -327,7 +354,7 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
               href="/?obs=1"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-secondary-2 text-xs sm:text-sm"
+              className="btn-secondary text-xs sm:text-sm press-down"
             >
               <ExternalLink size={16} />
               OBS 展示页
@@ -367,7 +394,7 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
 
             <button
               onClick={handleSendToTournament}
-              className="btn-secondary-2 text-xs sm:text-sm"
+              className="btn-secondary text-xs sm:text-sm press-down btn-shimmer"
             >
               <Trophy size={16} />
               发送到赛事
@@ -375,7 +402,7 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
 
             <button
               onClick={() => onSwitchPage?.('selector')}
-              className="btn-primary-2 text-xs sm:text-sm"
+              className="btn-primary text-xs sm:text-sm press-down btn-shimmer"
             >
               <MousePointerClick size={16} />
               指定选曲
@@ -385,8 +412,8 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
 
         {/* Title */}
         <div className="text-center relative">
-          <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <h2 className="relative inline-block font-orbitron font-black text-2xl sm:text-3xl px-6 bg-dark-bg">
+          <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <h2 className="relative inline-block font-orbitron font-black text-2xl sm:text-3xl px-6 bg-[#0b0c15] animate-enter-scale">
             <span className="title-gradient">抽卡结果</span>
           </h2>
         </div>
@@ -396,11 +423,11 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
           {/* Background burst effect during reveal */}
           {(phase === 'revealing' || phase === 'done') && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-              <div className="w-[120%] h-[120%] bg-gradient-radial from-yellow-400/5 via-transparent to-transparent animate-burstFade" />
+              <div className="w-[120%] h-[120%] bg-gradient-radial from-amber-400/8 via-transparent to-transparent animate-burstFade" />
             </div>
           )}
 
-          <div className="relative z-10 flex flex-wrap justify-center gap-6 lg:gap-8">
+          <div className="relative z-10 flex flex-wrap justify-center gap-6 lg:gap-8 stagger-children">
             {renderCards}
           </div>
         </div>

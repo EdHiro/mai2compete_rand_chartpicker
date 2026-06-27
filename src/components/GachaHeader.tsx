@@ -11,14 +11,15 @@ const chartTypes: { value: ChartType; label: string }[] = [
   { value: 'dx', label: 'DX谱面' },
 ]
 
-// 预设难度区间
+// 预设难度区间（支持 "13+" 这类带加号的字符串，会被 parseInputValue 正确解析为 13.5）
 const presetRanges = [
-  { label: '1-7', min: 1, max: 7 },
-  { label: '8-11', min: 8, max: 11 },
-  { label: '12-13', min: 12, max: 13 },
-  { label: '13+', min: 13, max: 15 },
-  { label: '14', min: 14, max: 14 },
-  { label: '14+', min: 14, max: 15 },
+  { label: '1-7', min: '1', max: '7' },
+  { label: '8-11', min: '8', max: '11' },
+  { label: '12-13', min: '12', max: '13' },
+  { label: '13+', min: '13+', max: '13+' },
+  { label: '14', min: '14', max: '14' },
+  { label: '14+', min: '14+', max: '14+' },
+  { label: '14-15', min: '14', max: '15'}
 ]
 
 const difficultyConfig = [
@@ -37,6 +38,11 @@ function parseInputValue(val: string): number {
   const hasPlus = val.includes('+')
   const numPart = parseInt(val.replace('+', '')) || 1
   return hasPlus ? numPart + 0.5 : numPart
+}
+
+function formatLevelRange(min: string, max: string): string {
+  if (min === max) return min
+  return `${min}-${max}`
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -130,10 +136,10 @@ export default function GachaHeader() {
     setGenreFilter('')
   }
 
-  const handlePresetRange = (min: number, max: number) => {
-    setTempMin(min.toString())
-    setTempMax(max.toString())
-    setLevelRange(min.toString(), max.toString())
+  const handlePresetRange = (min: string, max: string) => {
+    setTempMin(min)
+    setTempMax(max)
+    setLevelRange(min, max)
   }
 
   const activeFilterCount = useMemo(() => {
@@ -151,27 +157,27 @@ export default function GachaHeader() {
 
   return (
     <header className={cn(
-      'sticky top-0 z-50 transition-all duration-500 ease-out',
+      'sticky top-0 z-50 transition-all duration-500 ease-out animate-enter',
       !collapsed && 'max-h-[90vh]'
     )}>
       {/* Top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-pink-500 z-10" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/80 via-violet-400/80 to-transparent z-10" />
 
       {/* Toolbar */}
-      <div className="relative bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-2xl shadow-black/40">
+      <div className="relative bg-[#0b0c15]/80 backdrop-blur-2xl border-b border-white/10 shadow-2xl shadow-black/40">
         <div className="max-w-7xl mx-auto px-3 sm:px-4">
           <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
             {/* Brand */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 onClick={toggleCollapsed}
-                className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all press-down"
                 title={collapsed ? '展开' : '折叠'}
               >
                 <ChevronDown size={18} className={cn('transition-transform duration-300', !collapsed && 'rotate-180')} />
               </button>
 
-              <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
+              <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 via-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
                 <Gift size={18} className="text-white" />
               </div>
 
@@ -192,14 +198,14 @@ export default function GachaHeader() {
             </div>
 
             {/* Draw count segment */}
-            <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex items-center p-1 rounded-2xl bg-white/5 border border-white/10">
               {drawCounts.map((count) => (
                 <button
                   key={count}
                   onClick={() => setDrawCount(count)}
                   disabled={shaking}
                   className={cn(
-                    'relative px-2.5 sm:px-4 py-1.5 rounded-lg font-orbitron font-bold text-xs sm:text-sm transition-all duration-200 min-w-[2.25rem]',
+                    'relative px-2.5 sm:px-4 py-1.5 rounded-xl font-orbitron font-bold text-xs sm:text-sm transition-all duration-200 min-w-[2.25rem] press-down',
                     drawCount === count
                       ? 'text-white bg-gradient-to-b from-amber-400 to-orange-600 shadow-[0_0_16px_rgba(245,158,11,0.45)]'
                       : 'text-white/50 hover:text-white hover:bg-white/5',
@@ -216,10 +222,10 @@ export default function GachaHeader() {
               <button
                 onClick={expand}
                 className={cn(
-                  'flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all',
+                  'flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-bold transition-all press-down',
                   activeFilterCount > 0
                     ? 'bg-cyan-500/15 border-cyan-400/40 text-cyan-100 shadow-[0_0_16px_rgba(6,182,212,0.2)]'
-                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
+                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20'
                 )}
               >
                 <SlidersHorizontal size={14} />
@@ -235,10 +241,10 @@ export default function GachaHeader() {
                 onClick={handleDraw}
                 disabled={filteredCount === 0 || shaking}
                 className={cn(
-                  'group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-orbitron font-bold text-white text-xs sm:text-sm border overflow-hidden transition-all duration-300',
+                  'group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-orbitron font-bold text-white text-xs sm:text-sm border overflow-hidden transition-all duration-300 press-down btn-shimmer',
                   filteredCount === 0 || shaking
-                    ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed opacity-50'
-                    : 'bg-gradient-to-b from-red-500 to-red-700 border-red-400/50 hover:from-red-400 hover:to-red-600 hover:shadow-[0_4px_24px_rgba(239,68,68,0.45)] hover:-translate-y-0.5',
+                    ? 'bg-white/5 border-white/10 cursor-not-allowed opacity-50'
+                    : 'bg-gradient-to-b from-rose-500 to-rose-700 border-rose-400/50 hover:from-rose-400 hover:to-rose-600 hover:shadow-[0_4px_24px_rgba(244,63,94,0.45)] hover:-translate-y-0.5',
                   shaking && 'animate-gachaShake'
                 )}
               >
@@ -256,13 +262,13 @@ export default function GachaHeader() {
 
       {/* Collapsible control deck */}
       <div className={cn(
-        'overflow-hidden transition-all duration-500 ease-out bg-slate-950/80 backdrop-blur-xl border-b border-white/10',
+        'overflow-hidden transition-all duration-500 ease-out bg-[#0b0c15]/80 backdrop-blur-2xl border-b border-white/10',
         collapsed ? 'max-h-0 opacity-0' : 'max-h-[85vh] opacity-100 overflow-y-auto'
       )}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-5 space-y-5">
           {/* Active filter strip */}
           {activeFilterCount > 0 && (
-            <div className="flex items-center gap-3 overflow-x-auto scrollbar-thin pb-1">
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-thin pb-1 stagger-children">
               <span className="font-rajdhani font-bold text-[11px] uppercase tracking-wider text-white/40 shrink-0">
                 已启用
               </span>
@@ -277,7 +283,7 @@ export default function GachaHeader() {
                   <span className="badge-warning whitespace-nowrap">流派: {genreFilter}</span>
                 )}
                 {(minLevel !== '1' || maxLevel !== '15') && (
-                  <span className="badge-warning whitespace-nowrap">等级: {minLevel}-{maxLevel}</span>
+                  <span className="badge-warning whitespace-nowrap">等级: {formatLevelRange(minLevel, maxLevel)}</span>
                 )}
                 {includePlusOnly && (
                   <span className="badge-warning whitespace-nowrap">仅+难度</span>
@@ -288,27 +294,27 @@ export default function GachaHeader() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
             {/* Filters */}
-            <section className="lg:col-span-8 glass-panel-strong rounded-2xl p-4 sm:p-5">
+            <section className="lg:col-span-8 glass-panel rounded-3xl p-4 sm:p-5 animate-enter">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Difficulty */}
                 <div>
                   <SectionLabel>难度筛选</SectionLabel>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 stagger-children">
                     {difficultyConfig.map(({ value, label, gradient, border, shadow, text }) => {
                       const isActive = activeFilters.has(value)
                       return (
                         <button
-                          key={value}
-                          onClick={() => toggleFilter(value)}
-                          className={cn(
-                            'relative px-3 py-2 rounded-xl font-orbitron font-black text-xs border transition-all duration-200',
-                            isActive
-                              ? `text-white bg-gradient-to-b ${gradient} ${border} shadow-lg ${shadow} scale-[1.02]`
-                              : `bg-white/5 border-white/10 ${text} hover:bg-white/10 hover:text-white`
-                          )}
-                        >
-                          {label}
-                        </button>
+                      key={value}
+                      onClick={() => toggleFilter(value)}
+                      className={cn(
+                        'relative px-3 py-2 rounded-xl font-orbitron font-black text-xs border transition-all duration-200 press-down',
+                        isActive
+                          ? `text-white bg-gradient-to-b ${gradient} ${border} shadow-lg ${shadow} scale-[1.02]`
+                          : `bg-white/5 border-white/10 ${text} hover:bg-white/10 hover:text-white hover:border-white/20`
+                      )}
+                    >
+                      {label}
+                    </button>
                       )
                     })}
                   </div>
@@ -317,7 +323,7 @@ export default function GachaHeader() {
                 {/* Chart type */}
                 <div>
                   <SectionLabel>谱面类型</SectionLabel>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 stagger-children">
                     {chartTypes.map(({ value, label }) => {
                       const isActive = chartTypeFilter.has(value)
                       return (
@@ -325,10 +331,10 @@ export default function GachaHeader() {
                           key={value}
                           onClick={() => toggleChartTypeFilter(value)}
                           className={cn(
-                            'relative px-3 py-2 rounded-xl font-orbitron font-black text-xs border transition-all duration-200',
+                            'relative px-3 py-2 rounded-xl font-orbitron font-black text-xs border transition-all duration-200 press-down',
                             isActive
                               ? 'text-white bg-gradient-to-b from-cyan-500 to-teal-600 border-cyan-400/50 shadow-lg shadow-cyan-500/25 scale-[1.02]'
-                              : 'bg-white/5 border-white/10 text-cyan-200 hover:bg-white/10 hover:text-white'
+                              : 'bg-white/5 border-white/10 text-cyan-200 hover:bg-white/10 hover:text-white hover:border-white/20'
                           )}
                         >
                           {label}
@@ -345,10 +351,10 @@ export default function GachaHeader() {
                     <button
                       onClick={() => setGenreFilter('')}
                       className={cn(
-                        'px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs border transition-all duration-200',
+                        'px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs border transition-all duration-200 press-down',
                         !genreFilter
                           ? 'text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border-indigo-400/50 shadow-lg shadow-indigo-500/25'
-                          : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                          : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
                       )}
                     >
                       全部
@@ -358,10 +364,10 @@ export default function GachaHeader() {
                         key={genre}
                         onClick={() => setGenreFilter(genre)}
                         className={cn(
-                          'px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs border transition-all duration-200',
+                          'px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs border transition-all duration-200 press-down',
                           genre === genreFilter
                             ? 'text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border-indigo-400/50 shadow-lg shadow-indigo-500/25'
-                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
                         )}
                       >
                         {genre}
@@ -373,18 +379,18 @@ export default function GachaHeader() {
                 {/* Level range */}
                 <div className="md:col-span-2">
                   <SectionLabel>等级区间</SectionLabel>
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="flex flex-wrap gap-2 mb-3 stagger-children">
                     {presetRanges.map((range) => {
-                      const isActive = minLevel === range.min.toString() && maxLevel === range.max.toString()
+                      const isActive = minLevel === range.min && maxLevel === range.max
                       return (
                         <button
                           key={range.label}
                           onClick={() => handlePresetRange(range.min, range.max)}
                           className={cn(
-                            'px-3 py-1.5 rounded-lg font-rajdhani font-bold text-xs border transition-all duration-200',
+                            'px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs border transition-all duration-200 press-down',
                             isActive
                               ? 'text-white bg-gradient-to-b from-amber-500 to-orange-600 border-amber-400/50 shadow-lg shadow-amber-500/25'
-                              : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                              : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
                           )}
                         >
                           {range.label}
@@ -406,7 +412,7 @@ export default function GachaHeader() {
                           setTempMin(numPart + (hasPlus ? '+' : ''))
                         }
                       }}
-                      className="w-16 px-3 py-2 rounded-xl bg-dark-card text-white border-2 border-dark-border/50 font-bold text-center text-sm focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                      className="input-refined w-16 px-3 py-2 text-center text-sm font-bold"
                       placeholder="1"
                     />
                     <span className="text-white/40 font-bold">-</span>
@@ -423,12 +429,12 @@ export default function GachaHeader() {
                           setTempMax(numPart + (hasPlus ? '+' : ''))
                         }
                       }}
-                      className="w-16 px-3 py-2 rounded-xl bg-dark-card text-white border-2 border-dark-border/50 font-bold text-center text-sm focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                      className="input-refined w-16 px-3 py-2 text-center text-sm font-bold"
                       placeholder="15"
                     />
                     <button
                       onClick={handleApplyLevelRange}
-                      className="px-4 py-1.5 rounded-xl bg-gradient-to-b from-green-500 to-green-600 text-white font-bold text-xs border border-green-400/50 hover:from-green-400 hover:to-green-500 transition-all duration-200 shadow-[0_2px_12px_rgba(34,197,94,0.3)]"
+                      className="px-4 py-1.5 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-bold text-xs border border-emerald-400/50 hover:from-emerald-400 hover:to-emerald-500 transition-all duration-200 shadow-[0_2px_12px_rgba(34,197,94,0.3)] press-down"
                     >
                       应用
                     </button>
@@ -440,10 +446,10 @@ export default function GachaHeader() {
                   <button
                     onClick={() => setIncludePlusOnly(!includePlusOnly)}
                     className={cn(
-                      'w-full px-4 py-2.5 rounded-xl font-rajdhani font-bold text-sm border transition-all duration-200 flex items-center justify-center gap-2',
+                      'w-full px-4 py-2.5 rounded-xl font-rajdhani font-bold text-sm border transition-all duration-200 flex items-center justify-center gap-2 press-down',
                       includePlusOnly
                         ? 'text-white bg-gradient-to-b from-amber-500 to-orange-600 border-amber-400/50 shadow-lg shadow-amber-500/25'
-                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
                     )}
                   >
                     <Plus size={14} />
@@ -454,14 +460,14 @@ export default function GachaHeader() {
             </section>
 
             {/* Settings */}
-            <section className="lg:col-span-4 flex flex-col gap-4 lg:gap-5">
-              <div className="glass-panel-strong rounded-2xl p-4 sm:p-5">
+            <section className="lg:col-span-4 flex flex-col gap-4 lg:gap-5 animate-enter">
+              <div className="glass-panel rounded-3xl p-4 sm:p-5">
                 <SectionLabel>曲库设置</SectionLabel>
 
                 <div className="flex flex-wrap gap-2 mb-3">
                   <button
                     onClick={() => setShowPoolManager(!showPoolManager)}
-                    className="btn-secondary-2 text-xs"
+                    className="btn-secondary text-xs press-down"
                   >
                     <Database size={14} />
                     {showPoolManager ? '收起管理' : '管理曲库'}
@@ -470,10 +476,10 @@ export default function GachaHeader() {
                     <button
                       onClick={() => setDrawMode(drawMode === 'multi' ? 'single' : 'multi')}
                       className={cn(
-                        'relative inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-rajdhani font-bold text-xs text-white border shadow-lg transition-all duration-200',
+                        'relative inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-rajdhani font-bold text-xs text-white border shadow-lg transition-all duration-200 press-down',
                         drawMode === 'multi'
-                          ? 'bg-gradient-to-b from-yellow-500 to-orange-600 border-yellow-300'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10'
+                          ? 'bg-gradient-to-b from-yellow-500 to-orange-600 border-yellow-300/50'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                       )}
                     >
                       {drawMode === 'multi' ? '多库抽取 ✓' : '单库抽取'}
@@ -495,14 +501,14 @@ export default function GachaHeader() {
                 )}
               </div>
 
-              <div className="glass-panel-strong rounded-2xl p-4 sm:p-5">
+              <div className="glass-panel rounded-3xl p-4 sm:p-5">
                 <SectionLabel>当前状态</SectionLabel>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 stagger-children">
                   <span className="chip">抽取 {drawCount} 张</span>
-                  <span className="chip">等级 {minLevel}-{maxLevel}</span>
+                  <span className="chip">等级 {formatLevelRange(minLevel, maxLevel)}</span>
                   {includePlusOnly && <span className="chip">仅 + 难度</span>}
                   {genreFilter && <span className="chip">流派: {genreFilter}</span>}
-                  <span className="chip text-blue-200">
+                  <span className="chip text-cyan-200">
                     候选 <span className="text-white font-bold">{filteredCount}</span> 张
                   </span>
                 </div>
@@ -510,7 +516,7 @@ export default function GachaHeader() {
 
               <button
                 onClick={handleResetLevelFilter}
-                className="btn-danger w-full text-xs sm:text-sm"
+                className="btn-danger w-full text-xs sm:text-sm press-down"
               >
                 <RotateCcw size={14} />
                 重置全部筛选
@@ -524,10 +530,10 @@ export default function GachaHeader() {
               onClick={handleDraw}
               disabled={filteredCount === 0 || shaking}
               className={cn(
-                'group relative px-10 sm:px-20 py-5 sm:py-6 rounded-2xl font-orbitron font-black text-white text-xl sm:text-2xl border-4 overflow-hidden ring-1 ring-inset ring-white/20 transition-all duration-300',
+                'group relative px-10 sm:px-20 py-5 sm:py-6 rounded-3xl font-orbitron font-black text-white text-xl sm:text-2xl border-[3px] overflow-hidden ring-1 ring-inset ring-white/20 transition-all duration-300 press-down btn-shimmer',
                 filteredCount === 0 || shaking
-                  ? 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed opacity-50'
-                  : 'bg-gradient-to-b from-red-500 to-red-700 border-red-400/50 hover:from-red-400 hover:to-red-600 hover:shadow-[0_8px_40px_rgba(239,68,68,0.45)] hover:-translate-y-1',
+                  ? 'bg-white/5 border-white/10 cursor-not-allowed opacity-50'
+                  : 'bg-gradient-to-b from-rose-500 to-rose-700 border-rose-400/50 hover:from-rose-400 hover:to-rose-600 hover:shadow-[0_8px_40px_rgba(244,63,94,0.45)] hover:-translate-y-1',
                 shaking && 'animate-gachaShake'
               )}
             >

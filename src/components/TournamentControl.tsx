@@ -13,7 +13,7 @@ import {
 import type { Song } from '@/store/songStore'
 import { useToast } from '@/components/Toast'
 import { QRCodeSVG } from 'qrcode.react'
-import { Trophy, Lock, Unlock, ChevronRight, RotateCcw, Play, Save, Users, ArrowRight, Download, Upload, Clock, History, Trash2, Eye, X, LayoutList, Plus, Minus, Hash, FolderOpen, FolderPlus, Edit3, QrCode, Music, Swords, Shuffle, Undo2, Wifi, WifiOff } from 'lucide-react'
+import { Trophy, Lock, Unlock, ChevronRight, RotateCcw, Play, Save, Users, ArrowRight, Download, Upload, Clock, History, Trash2, Eye, X, LayoutList, Plus, Minus, Hash, FolderOpen, FolderPlus, Edit3, QrCode, Music, Swords, Shuffle, Undo2, Wifi, WifiOff, Timer } from 'lucide-react'
 import { getConnectionStatus } from '@/utils/tabSync'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +33,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     rankingSnapshots,
     setPlayerNames,
     updatePlayer,
+    updatePlayerCheckIn,
     removePlayer,
     addPlayer,
     addPlayers,
@@ -72,6 +73,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     setStageSongs,
     addStageSong,
     removeStageSong,
+    createGroupsN216,
     createGroups16to8,
     shuffleGroups8to4,
     createGroupsSemi,
@@ -87,7 +89,13 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
   const [timerInputMin, setTimerInputMin] = useState(0)
   const [timerInputSec, setTimerInputSec] = useState(0)
   const [timerCustomLabel, setTimerCustomLabel] = useState('')
-  const [checkinNames, setCheckinNames] = useState<string[]>([])
+  const [checkinNames, setCheckinNames] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('tournament-checkin-names')
+      if (saved) return JSON.parse(saved)
+    } catch { /* ignore */ }
+    return []
+  })
   const [showCheckInPanel, setShowCheckInPanel] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -160,6 +168,14 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               if (prev.includes(name)) return prev
               return [...prev, name]
             })
+            // 自动标记已存在的选手为已签到
+            const normalized = name.trim().toLowerCase()
+            const player = stages.n216.players.find(
+              (p) => p.name.trim().toLowerCase() === normalized
+            )
+            if (player) {
+              updatePlayerCheckIn('n216', player.id, true)
+            }
           }
         } catch {
           // ignore invalid messages
@@ -179,6 +195,13 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
       checkinChannelRef.current = null
     }
   }, [])
+
+  // 持久化签到名单
+  useEffect(() => {
+    try {
+      localStorage.setItem('tournament-checkin-names', JSON.stringify(checkinNames))
+    } catch { /* ignore */ }
+  }, [checkinNames])
 
   const handleStartTournament = () => {
     const n216Players = stages.n216.players
@@ -304,6 +327,12 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     const totalSeconds = timerInputMin * 60 + timerInputSec
     if (totalSeconds <= 0) return
     startTimer(timerCustomLabel || '计时', totalSeconds)
+  }
+
+  // 打开独立倒计时同步屏
+  const openCountdownDisplay = () => {
+    const base = window.location.origin + window.location.pathname.replace(/\/$/, '')
+    window.open(`${base}/countdown`, 'countdownDisplay', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no')
   }
 
   // Format seconds to mm:ss
@@ -452,12 +481,12 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
         disabled={!isAvailable}
         className={`w-full text-left px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
           isCurrent
-            ? 'btn-primary-2'
+            ? 'btn-primary press-down'
             : isCompleted
-            ? 'bg-green-500/15 text-green-300 border border-green-500/40'
+            ? 'glass-panel border-green-400/40 text-green-300 shadow-lg shadow-green-500/10 press-down'
             : isAvailable
-            ? 'bg-dark-card/60 text-white/70 hover:bg-dark-card hover:text-white border border-dark-border/40'
-            : 'bg-dark-bg/40 text-white/20 border border-dark-border/20 cursor-not-allowed'
+            ? 'glass-panel text-white/70 hover:border-white/20 hover:text-white press-down'
+            : 'glass-panel opacity-50 text-white/30 cursor-not-allowed'
         }`}
       >
         <span className="flex-1 truncate">{getStageLabel(stage)}</span>
@@ -483,12 +512,12 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
             disabled={!isAvailable}
             className={`flex-shrink-0 px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 ${
               isCurrent
-                ? 'btn-primary-2'
+                ? 'tab-item press-down'
                 : isCompleted
-                ? 'bg-green-500/15 text-green-300 border border-green-500/40'
+                ? 'glass-panel border-green-400/40 text-green-300 shadow-lg shadow-green-500/10 press-down'
                 : isAvailable
-                ? 'bg-dark-card/60 text-white/70 hover:bg-dark-card hover:text-white border border-dark-border/40'
-                : 'bg-dark-bg/40 text-white/20 border border-dark-border/20 cursor-not-allowed'
+                ? 'tab-item press-down'
+                : 'glass-panel opacity-50 text-white/30 cursor-not-allowed'
             }`}
           >
             <span>{getStageLabel(stage)}</span>
@@ -501,7 +530,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
   // 左侧边栏
   const renderSidebar = () => (
-    <aside className="hidden md:flex w-72 flex-col glass-panel-strong border-r border-white/5">
+    <aside className="hidden md:flex w-72 flex-col glass-panel border-r border-white/5">
       <div className="p-5 border-b border-white/5">
         <h2 className="text-xl font-bold text-white flex items-center gap-2.5">
           <Trophy className="text-amber-400" size={24} />
@@ -526,7 +555,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 stagger-children">
         <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-1">阶段导航</h3>
         {STAGE_ORDER.map((stage, idx) => renderStageNavItem(stage, idx))}
       </div>
@@ -534,7 +563,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
       {/* 底部计时器 */}
       <div className="p-4 border-t border-white/5">
         {(timerRunning || timerSeconds > 0) ? (
-          <div className="surface-card p-3">
+          <div className="glass-panel p-3 rounded-2xl">
             <div className="flex items-center gap-2 mb-2">
               <Clock size={14} className="text-amber-400" />
               <span className="text-xs font-bold text-white/60">{timerLabel || '计时器'}</span>
@@ -544,15 +573,15 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
             </div>
             <div className="flex gap-2 mt-2">
               {timerRunning ? (
-                <button onClick={stopTimer} className="btn-secondary-2 flex-1 text-xs py-2">暂停</button>
+                <button onClick={stopTimer} className="btn-secondary flex-1 text-xs py-2 press-down">暂停</button>
               ) : (
-                <button onClick={() => startTimer(timerLabel, timerSeconds)} className="btn-primary-2 flex-1 text-xs py-2">继续</button>
+                <button onClick={() => startTimer(timerLabel, timerSeconds)} className="btn-primary press-down flex-1 text-xs py-2">继续</button>
               )}
-              <button onClick={resetTimer} className="btn-danger flex-1 text-xs py-2">重置</button>
+              <button onClick={resetTimer} className="btn-danger flex-1 text-xs py-2 press-down">重置</button>
             </div>
           </div>
         ) : (
-          <div className="surface-card p-3 space-y-2">
+          <div className="glass-panel p-3 space-y-2 rounded-2xl">
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-amber-400" />
               <span className="text-xs font-bold text-white/60">计时器</span>
@@ -565,7 +594,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 value={timerInputMin}
                 onChange={(e) => setTimerInputMin(parseInt(e.target.value) || 0)}
                 placeholder="分"
-                className="input-field w-full py-2 text-center text-xs"
+                className="input-refined w-full py-2 text-center text-xs"
               />
               <span className="text-white/40 self-center text-xs">:</span>
               <input
@@ -575,17 +604,18 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 value={timerInputSec}
                 onChange={(e) => setTimerInputSec(parseInt(e.target.value) || 0)}
                 placeholder="秒"
-                className="input-field w-full py-2 text-center text-xs"
+                className="input-refined w-full py-2 text-center text-xs"
               />
             </div>
             <button
               onClick={handleStartTimer}
               disabled={timerInputMin * 60 + timerInputSec <= 0}
-              className={`w-full py-2 rounded-xl font-bold text-xs transition-all ${
+              className={cn(
+                'w-full py-2 rounded-xl font-bold text-xs transition-all',
                 timerInputMin * 60 + timerInputSec <= 0
-                  ? 'bg-dark-card text-white/30 border border-dark-border/40 cursor-not-allowed'
-                  : 'btn-primary-2'
-              }`}
+                  ? 'btn-secondary press-down opacity-50 cursor-not-allowed'
+                  : 'btn-primary press-down btn-shimmer'
+              )}
             >
               开始计时
             </button>
@@ -597,9 +627,9 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
   // 顶部操作栏（赛事进行中）
   const renderTopActionBar = () => (
-    <div className="surface-card p-4 mb-4 flex flex-wrap gap-3 items-center justify-between">
+    <div className="glass-panel p-4 mb-4 flex flex-wrap gap-3 items-center justify-between rounded-2xl">
       <div className="flex items-center gap-3 flex-wrap">
-        <h3 className="text-2xl font-bold text-white">{stageLabel}</h3>
+        <h3 className="text-2xl font-black title-gradient">{stageLabel}</h3>
         <span className="text-sm text-white/50">
           {stageData.players.length} 名选手 · 前 {advanceCount} 名晋级
         </span>
@@ -613,54 +643,57 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
       <div className="flex gap-2 flex-wrap">
         {stageData.locked ? (
           <>
-            <button onClick={() => toggleStageLock(currentStage)} className="btn-secondary-2">
+            <button onClick={() => toggleStageLock(currentStage)} className="btn-secondary press-down">
               <Unlock size={16} /> 解锁修改
             </button>
             {rankingSnapshots[currentStage] && (
-              <button onClick={handleUndoRankings} className="btn-danger">
+              <button onClick={handleUndoRankings} className="btn-danger press-down">
                 <Undo2 size={16} /> 撤销排名
               </button>
             )}
             {stageIndex < STAGE_ORDER.length - 1 && (
-              <button onClick={handleNextStage} className="btn-primary-2">
+              <button onClick={handleNextStage} className="btn-primary press-down btn-shimmer">
                 进入下一阶段 <ChevronRight size={16} />
               </button>
             )}
           </>
         ) : previewRankings[currentStage] ? (
           <>
-            <button onClick={handleCommitRankings} className="btn-primary-2">
+            <button onClick={handleCommitRankings} className="btn-primary press-down btn-shimmer">
               <Lock size={16} /> 确认锁定
             </button>
-            <button onClick={handleCancelPreview} className="btn-secondary-2">
+            <button onClick={handleCancelPreview} className="btn-secondary press-down">
               <X size={16} /> 取消预览
             </button>
           </>
         ) : (
           <>
-            <button onClick={handlePreviewRankings} className="btn-primary-2">
+            <button onClick={handlePreviewRankings} className="btn-primary press-down btn-shimmer">
               <Eye size={16} /> 预览排名
             </button>
             {rankingSnapshots[currentStage] && (
-              <button onClick={handleUndoRankings} className="btn-danger">
+              <button onClick={handleUndoRankings} className="btn-danger press-down">
                 <Undo2 size={16} /> 撤销排名
               </button>
             )}
           </>
         )}
-        <button onClick={handleBroadcast} className="btn-secondary-2">
+        <button onClick={handleBroadcast} className="btn-secondary press-down">
           同步到 OBS
         </button>
-        <button onClick={handleSaveHistory} className="btn-secondary-2">
+        <button onClick={openCountdownDisplay} className="btn-secondary press-down">
+          <Timer size={16} /> 倒计时屏
+        </button>
+        <button onClick={handleSaveHistory} className="btn-secondary press-down">
           <History size={16} /> 保存历史
         </button>
-        <button onClick={handleExport} className="btn-secondary-2">
+        <button onClick={handleExport} className="btn-secondary press-down">
           <Download size={16} /> 导出
         </button>
-        <button onClick={() => fileInputRef.current?.click()} className="btn-secondary-2">
+        <button onClick={() => fileInputRef.current?.click()} className="btn-secondary press-down">
           <Upload size={16} /> 导入
         </button>
-        <button onClick={handleReset} className="btn-danger">
+        <button onClick={handleReset} className="btn-danger press-down">
           <RotateCcw size={16} /> 重置赛事
         </button>
       </div>
@@ -669,27 +702,27 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
   if (!isTournamentStarted) {
     return (
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen page-enter">
         {renderSidebar()}
         <main className="flex-1 overflow-auto px-4 py-6 md:px-8 md:py-8">
           {/* 小屏幕顶部导航 */}
           {renderMobileStageNav()}
 
           <div className="max-w-4xl mx-auto">
-            <div className="glass-panel-strong rounded-2xl p-6 md:p-8">
-              <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+            <div className="glass-panel rounded-2xl p-6 md:p-8">
+              <h2 className="text-3xl font-black title-gradient mb-6 flex items-center gap-3 animate-enter">
                 <Trophy className="text-amber-400" size={32} />
                 赛事设置
               </h2>
 
               {/* 赛制模式切换 */}
-              <div className="surface-card p-5 mb-6">
+              <div className="glass-panel rounded-2xl p-5 mb-6">
                 <h3 className="text-xs font-bold text-white/50 mb-3 uppercase tracking-wider">赛制模式</h3>
                 <div className="flex gap-3">
                   <button
                     onClick={() => handleToggleCustomMode(false)}
                     className={`flex-1 px-5 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm ${
-                      !isCustomMode ? 'btn-primary-2' : 'btn-secondary-2'
+                      !isCustomMode ? 'btn-primary press-down' : 'btn-secondary press-down'
                     }`}
                   >
                     固定赛制（N→16→8→4→2→1）
@@ -697,7 +730,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                   <button
                     onClick={() => handleToggleCustomMode(true)}
                     className={`flex-1 px-5 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm ${
-                      isCustomMode ? 'btn-primary-2' : 'btn-secondary-2'
+                      isCustomMode ? 'btn-primary press-down' : 'btn-secondary press-down'
                     }`}
                   >
                     自定义赛制
@@ -710,7 +743,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                         setEditingStages(customStages)
                         setShowCustomStageEditor(true)
                       }}
-                      className="btn-secondary-2 text-sm"
+                      className="btn-secondary text-sm press-down"
                     >
                       <Edit3 size={16} /> 编辑自定义阶段
                     </button>
@@ -728,7 +761,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               </div>
 
               {/* 模板管理 */}
-              <div className="surface-card p-5 mb-6">
+              <div className="glass-panel rounded-2xl p-5 mb-6">
                 <h3 className="text-xs font-bold text-white/50 mb-3 uppercase tracking-wider">赛事模板</h3>
                 <div className="flex gap-2 mb-3">
                   <input
@@ -736,9 +769,9 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                     value={templateNameInput}
                     onChange={(e) => setTemplateNameInput(e.target.value)}
                     placeholder="输入模板名称（如：常规赛第3期）"
-                    className="input-field flex-1"
+                    className="input-refined flex-1"
                   />
-                  <button onClick={handleSaveTemplate} className="btn-primary-2">
+                  <button onClick={handleSaveTemplate} className="btn-primary press-down btn-shimmer">
                     <Save size={16} /> 保存模板
                   </button>
                   <button
@@ -746,7 +779,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                       setTemplates(getTemplates())
                       setShowTemplateManager(true)
                     }}
-                    className="btn-secondary-2"
+                    className="btn-secondary press-down"
                   >
                     <FolderOpen size={16} /> 管理模板
                   </button>
@@ -754,10 +787,10 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               </div>
 
               {/* 选手扫码签到 */}
-              <div className="surface-card p-5 mb-6">
+              <div className="glass-panel rounded-2xl p-5 mb-6">
                 <h3 className="text-xs font-bold text-white/50 mb-3 uppercase tracking-wider">选手扫码签到</h3>
                 <div className="flex gap-2 mb-3 flex-wrap">
-                  <button onClick={() => setShowCheckInPanel(true)} className="btn-primary-2">
+                  <button onClick={() => setShowCheckInPanel(true)} className="btn-primary press-down btn-shimmer">
                     <QrCode size={16} /> 打开签到面板（二维码）
                   </button>
                   {checkinNames.length > 0 && (
@@ -767,7 +800,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                         addPlayers('n216', names)
                         setCheckinNames([])
                       }}
-                      className="btn-primary-2"
+                      className="btn-primary press-down btn-shimmer"
                     >
                       一键添加签到选手 ({checkinNames.length})
                     </button>
@@ -785,13 +818,13 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               </div>
 
               {/* Import/Export section */}
-              <div className="surface-card p-5 mb-6">
+              <div className="glass-panel rounded-2xl p-5 mb-6">
                 <h3 className="text-xs font-bold text-white/50 mb-3 uppercase tracking-wider">数据备份</h3>
                 <div className="flex gap-3 flex-wrap">
-                  <button onClick={handleExport} className="btn-secondary-2">
+                  <button onClick={handleExport} className="btn-secondary press-down">
                     <Download size={16} /> 导出 JSON 备份
                   </button>
-                  <button onClick={() => fileInputRef.current?.click()} className="btn-secondary-2">
+                  <button onClick={() => fileInputRef.current?.click()} className="btn-secondary press-down">
                     <Upload size={16} /> 导入 JSON 备份
                   </button>
                   <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
@@ -799,7 +832,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               </div>
 
               {/* 选手录入 */}
-              <div className="surface-card p-5 mb-6">
+              <div className="glass-panel rounded-2xl p-5 mb-6">
                 <h3 className="text-lg font-semibold text-white mb-3">
                   {isCustomMode ? (customStages[0]?.name || '第一阶段') : 'N进16'} 选手名单
                 </h3>
@@ -807,7 +840,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                   <button
                     onClick={() => setUseBulkMode(false)}
                     className={`px-5 py-2.5 rounded-xl font-medium transition-all text-sm ${
-                      !useBulkMode ? 'btn-primary-2' : 'btn-secondary-2'
+                      !useBulkMode ? 'btn-primary press-down' : 'btn-secondary press-down'
                     }`}
                   >
                     逐个添加
@@ -815,7 +848,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                   <button
                     onClick={() => setUseBulkMode(true)}
                     className={`px-5 py-2.5 rounded-xl font-medium transition-all text-sm ${
-                      useBulkMode ? 'btn-primary-2' : 'btn-secondary-2'
+                      useBulkMode ? 'btn-primary press-down' : 'btn-secondary press-down'
                     }`}
                   >
                     批量导入
@@ -828,9 +861,9 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                       value={bulkNameInput}
                       onChange={(e) => setBulkNameInput(e.target.value)}
                       placeholder="每行一个选手名称，例如：&#10;选手A&#10;选手B&#10;选手C"
-                      className="input-field w-full h-44 resize-none"
+                      className="input-refined w-full h-44 resize-none"
                     />
-                    <button onClick={handleBulkAddPlayers} className="btn-primary-2 mt-3">
+                    <button onClick={handleBulkAddPlayers} className="btn-primary press-down mt-3">
                       <Users size={16} /> 导入选手
                     </button>
                   </div>
@@ -842,9 +875,9 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                       onChange={(e) => setPlayerNameInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddSinglePlayer()}
                       placeholder="输入选手名称后回车或点击添加"
-                      className="input-field flex-1"
+                      className="input-refined flex-1"
                     />
-                    <button onClick={handleAddSinglePlayer} className="btn-primary-2">
+                    <button onClick={handleAddSinglePlayer} className="btn-primary press-down">
                       <Plus size={16} /> 添加
                     </button>
                   </div>
@@ -853,7 +886,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
               {/* 预览选手列表 */}
               {stages.n216.players.length > 0 && (
-                <div className="surface-card p-5 mb-6">
+                <div className="glass-panel rounded-2xl p-5 mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-white/80">
                       已添加 <span className="text-amber-400 font-bold">{stages.n216.players.length}</span> 名选手
@@ -864,16 +897,16 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                           clearPlayers('n216')
                         }
                       }}
-                      className="btn-danger text-xs py-1.5 px-3"
+                      className="btn-danger text-xs py-1.5 px-3 press-down"
                     >
                       <Trash2 size={12} /> 清空全部
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto">
+                  <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto stagger-children">
                     {stages.n216.players.map((p) => (
                       <div
                         key={p.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-dark-card text-white/90 text-sm border border-dark-border/40 group hover:border-red-500/30 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-panel text-white/90 text-sm group hover:border-rose-400/30 transition-colors hover-lift"
                       >
                         {p.seed !== undefined && p.seed !== null && (
                           <span className="text-amber-400 font-black text-xs mr-1">#{p.seed}</span>
@@ -896,32 +929,78 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 </div>
               )}
 
+              {/* N进16 分组 */}
+              {stages.n216.players.length >= 16 && (
+                <div className="glass-panel rounded-2xl p-5 mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-white/80">小组赛分组</h4>
+                    <span className="text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded-full">课题曲统一</span>
+                  </div>
+                  {stages.n216.groups.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 stagger-children">
+                      {stages.n216.groups.map((g, idx) => (
+                        <div key={g.id} className="p-3 rounded-xl bg-white/5 border border-white/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
+                              {idx + 1}
+                            </span>
+                            <span className="text-xs text-white/60">{g.playerIds.length} 人</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {g.playerIds.map((pid) => {
+                              const p = stages.n216.players.find((pl) => pl.id === pid)
+                              return p ? (
+                                <span key={pid} className="text-xs text-white/90 px-2 py-0.5 rounded-md bg-white/5">
+                                  {p.name}
+                                </span>
+                              ) : null
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-white/40 text-sm mb-4">按种子排名两人为一组，高种子对阵低种子。</p>
+                  )}
+                  <button
+                    onClick={() => {
+                      const result = createGroupsN216()
+                      if (result.message) showToast(result.message, result.success ? 'success' : 'info')
+                    }}
+                    className="btn-primary press-down btn-shimmer"
+                  >
+                    <Swords size={16} />
+                    {stages.n216.groups.length > 0 ? '重新按种子分组' : '按种子生成分组'}
+                  </button>
+                </div>
+              )}
+
               {/* History section */}
               <div className="mb-6">
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="btn-secondary-2 text-sm"
+                  className="btn-secondary text-sm press-down"
                 >
                   <History size={16} /> {showHistory ? '收起历史记录' : '查看历史记录'}
                 </button>
                 {showHistory && (
-                  <div className="mt-3 surface-card p-4 max-h-72 overflow-y-auto">
+                  <div className="mt-3 glass-panel rounded-2xl p-4 max-h-72 overflow-y-auto">
                     {(() => {
                       const history = loadHistory()
                       if (history.length === 0) {
                         return <p className="text-white/40 text-sm text-center py-4">暂无历史记录</p>
                       }
                       return (
-                        <div className="space-y-2">
+                        <div className="space-y-2 stagger-children">
                           {history.map((h) => (
-                            <div key={h.id} className="flex items-center justify-between p-3 bg-dark-card rounded-xl border border-dark-border/30">
+                            <div key={h.id} className="flex items-center justify-between p-3 rounded-xl glass-panel hover-lift">
                               <div>
                                 <span className="text-white font-medium">{h.champion}</span>
                                 <span className="text-white/50 text-sm ml-3">{h.date}</span>
                               </div>
                               <button
                                 onClick={() => deleteHistoryRecord(h.id)}
-                                className="btn-danger text-xs py-1.5 px-2.5"
+                                className="btn-danger text-xs py-1.5 px-2.5 press-down"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -933,7 +1012,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                                 clearHistory()
                               }
                             }}
-                            className="btn-danger text-sm w-full mt-2"
+                            className="btn-danger text-sm w-full mt-2 press-down"
                           >
                             清空所有历史
                           </button>
@@ -947,11 +1026,12 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               <button
                 onClick={handleStartTournament}
                 disabled={stages.n216.players.length < 2}
-                className={`w-full py-5 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 ${
+                className={cn(
+                  'w-full py-5 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3',
                   stages.n216.players.length < 2
-                    ? 'bg-dark-card text-white/30 border border-dark-border/40 cursor-not-allowed'
-                    : 'btn-primary-2 hover:-translate-y-0.5'
-                }`}
+                    ? 'btn-secondary press-down opacity-50 cursor-not-allowed'
+                    : 'btn-primary press-down btn-shimmer hover:-translate-y-0.5'
+                )}
               >
                 <Trophy size={24} />
                 开始赛事 {stages.n216.players.length >= 2 && `（${stages.n216.players.length}人参赛）`}
@@ -962,23 +1042,23 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
           {/* 自定义阶段编辑器弹窗 */}
           {showCustomStageEditor && (
             <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-              <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+              <div className="glass-panel rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     <LayoutList size={22} className="text-purple-400" />
                     编辑自定义阶段
                   </h3>
-                  <button onClick={handleCancelCustomStageEdit} className="btn-ghost">
+                  <button onClick={handleCancelCustomStageEdit} className="btn-ghost press-down">
                     <X size={22} />
                   </button>
                 </div>
 
                 <div className="space-y-3 mb-4">
                   {editingStages.map((stage, index) => (
-                    <div key={stage.id} className="surface-card p-4">
+                    <div key={stage.id} className="glass-panel rounded-2xl p-4 hover-lift">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-sm font-bold text-white/60">阶段 {index + 1}</span>
-                        <button onClick={() => handleRemoveCustomStage(stage.id)} className="btn-ghost ml-auto">
+                        <button onClick={() => handleRemoveCustomStage(stage.id)} className="btn-ghost ml-auto press-down">
                           <Minus size={18} className="text-red-400" />
                         </button>
                       </div>
@@ -989,7 +1069,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                             type="text"
                             value={stage.name}
                             onChange={(e) => handleUpdateCustomStage(stage.id, 'name', e.target.value)}
-                            className="input-field"
+                            className="input-refined"
                           />
                         </div>
                         <div>
@@ -999,7 +1079,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                             min="2"
                             value={stage.playerCount}
                             onChange={(e) => handleUpdateCustomStage(stage.id, 'playerCount', parseInt(e.target.value) || 2)}
-                            className="input-field"
+                            className="input-refined"
                           />
                         </div>
                         <div>
@@ -1009,7 +1089,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                             min="1"
                             value={stage.advanceCount}
                             onChange={(e) => handleUpdateCustomStage(stage.id, 'advanceCount', parseInt(e.target.value) || 1)}
-                            className="input-field"
+                            className="input-refined"
                           />
                         </div>
                       </div>
@@ -1017,15 +1097,15 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                   ))}
                 </div>
 
-                <button onClick={handleAddCustomStage} className="btn-secondary-2 w-full mb-3">
+                <button onClick={handleAddCustomStage} className="btn-secondary w-full mb-3 press-down">
                   <Plus size={18} /> 添加阶段
                 </button>
 
                 <div className="flex gap-3">
-                  <button onClick={handleCancelCustomStageEdit} className="btn-secondary-2 flex-1">
+                  <button onClick={handleCancelCustomStageEdit} className="btn-secondary flex-1 press-down">
                     取消
                   </button>
-                  <button onClick={handleSaveCustomStages} className="btn-primary-2 flex-1">
+                  <button onClick={handleSaveCustomStages} className="btn-primary press-down flex-1 btn-shimmer">
                     保存配置
                   </button>
                 </div>
@@ -1036,13 +1116,13 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
           {/* 模板管理弹窗 */}
           {showTemplateManager && (
             <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-              <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+              <div className="glass-panel rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     <FolderOpen size={22} className="text-blue-400" />
                     模板管理
                   </h3>
-                  <button onClick={() => setShowTemplateManager(false)} className="btn-ghost">
+                  <button onClick={() => setShowTemplateManager(false)} className="btn-ghost press-down">
                     <X size={22} />
                   </button>
                 </div>
@@ -1052,7 +1132,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 ) : (
                   <div className="space-y-2 mb-4">
                     {templates.map((t) => (
-                      <div key={t.id} className="surface-card p-4 flex items-center justify-between">
+                      <div key={t.id} className="glass-panel rounded-2xl p-4 flex items-center justify-between hover-lift">
                         <div className="flex-1 min-w-0">
                           <div className="text-white font-medium truncate">{t.name}</div>
                           <div className="text-white/50 text-xs mt-1">
@@ -1061,10 +1141,10 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                           </div>
                         </div>
                         <div className="flex gap-2 ml-3">
-                          <button onClick={() => handleLoadTemplate(t.id)} className="btn-primary-2 text-xs py-1.5 px-3">
+                          <button onClick={() => handleLoadTemplate(t.id)} className="btn-primary press-down btn-shimmer text-xs py-1.5 px-3">
                             <FolderOpen size={14} /> 加载
                           </button>
-                          <button onClick={() => handleDeleteTemplate(t.id)} className="btn-danger text-xs py-1.5 px-3">
+                          <button onClick={() => handleDeleteTemplate(t.id)} className="btn-danger text-xs py-1.5 px-3 press-down">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -1084,7 +1164,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
             const checkinUrl = `${window.location.origin}${window.location.pathname}?checkin=1&ws=${encodeURIComponent(wsUrl)}`
             return (
               <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="glass-panel-strong rounded-2xl p-8 max-w-sm w-full text-center">
+                <div className="glass-panel rounded-2xl p-8 max-w-sm w-full text-center">
                   <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
                     <QrCode className="text-cyan-400" size={24} />
                     扫码签到
@@ -1102,33 +1182,34 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                       type="text"
                       readOnly
                       value={checkinUrl}
-                      className="input-field flex-1 text-xs font-mono"
+                      className="input-refined flex-1 text-xs font-mono"
                     />
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(checkinUrl)
                         showToast('链接已复制', 'success')
                       }}
-                      className="btn-secondary-2 text-xs py-2 px-3"
+                      className="btn-secondary text-xs py-2 px-3 press-down"
                     >
                       复制
                     </button>
                   </div>
 
-                  <button onClick={() => setShowCheckInPanel(false)} className="btn-secondary-2 w-full">
+                  <button onClick={() => setShowCheckInPanel(false)} className="btn-secondary w-full press-down">
                     关闭
                   </button>
                 </div>
               </div>
             )
           })()}
+
         </main>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen page-enter">
       {renderSidebar()}
       <main className="flex-1 overflow-auto px-4 py-6 md:px-8 md:py-8">
         {/* 小屏幕顶部导航 */}
@@ -1139,7 +1220,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
         {/* 排名预览面板 */}
         {previewRankings[currentStage] && !stageData.locked && (
-          <div className="surface-card p-4 mb-4 border-l-4 border-yellow-400">
+          <div className="glass-panel rounded-2xl p-4 mb-4 border-l-4 border-yellow-400">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-lg font-bold text-white flex items-center gap-2">
                 <Eye size={20} className="text-yellow-400" />
@@ -1150,7 +1231,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-white/50 border-b border-dark-border">
+                  <tr className="text-white/50 border-b border-white/10">
                     <th className="text-left py-2 px-2">排名</th>
                     <th className="text-left py-2 px-2">选手</th>
                     <th className="text-left py-2 px-2">分数</th>
@@ -1164,7 +1245,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                     .map((player) => (
                       <tr
                         key={player.id}
-                        className={`border-b border-dark-border/40 ${
+                        className={`border-b border-white/10 ${
                           player.advanced ? 'bg-green-500/10' : player.eliminated ? 'bg-red-500/10' : ''
                         }`}
                       >
@@ -1191,14 +1272,14 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
         {/* 种子排序操作栏 */}
         {!stageData.locked && (
-          <div className="surface-card p-4 mb-4 flex flex-wrap gap-3 items-center">
+          <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
             <Hash size={20} className="text-yellow-400" />
             <span className="text-sm font-semibold text-white/70">种子排序</span>
-            <button onClick={handleApplySeeding} className="btn-primary-2 text-sm">
+            <button onClick={handleApplySeeding} className="btn-primary press-down btn-shimmer text-sm">
               <Hash size={16} /> 应用标准种子排序
             </button>
             {stageData.players.some(p => p.rank !== null) && (
-              <button onClick={handleAutoUpdateSeeds} className="btn-secondary-2 text-sm">
+              <button onClick={handleAutoUpdateSeeds} className="btn-secondary text-sm press-down">
                 <RotateCcw size={16} /> 根据排名自动更新种子
               </button>
             )}
@@ -1210,16 +1291,16 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
         {/* 选手录入（未锁定时） */}
         {!stageData.locked && (
-          <div className="surface-card p-4 mb-4 flex flex-wrap gap-2">
+          <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap gap-2">
             <input
               type="text"
               value={playerNameInput}
               onChange={(e) => setPlayerNameInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddSinglePlayer()}
               placeholder="输入选手名称后回车或点击添加"
-              className="input-field flex-1"
+              className="input-refined flex-1"
             />
-            <button onClick={handleAddSinglePlayer} className="btn-primary-2">
+            <button onClick={handleAddSinglePlayer} className="btn-primary press-down">
               <Plus size={16} /> 添加选手
             </button>
           </div>
@@ -1227,14 +1308,14 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
         {/* 阶段比赛用曲 */}
         {stageData.songs.length > 0 && (
-          <div className="surface-card p-4 mb-4">
+          <div className="glass-panel rounded-2xl p-4 mb-4">
             <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
               <Music size={20} className="text-purple-400" />
               阶段比赛用曲
             </h3>
             <div className="flex flex-wrap gap-3">
               {stageData.songs.map((s) => (
-                <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dark-bg border border-dark-border/40">
+                <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl glass-panel">
                   {s.song ? (
                     <>
                       <img src={s.song.cover} alt={s.song.name} className="w-10 h-10 rounded-lg object-cover" />
@@ -1260,7 +1341,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               <h3 className="text-lg font-bold text-white">分组对阵</h3>
             </div>
             {stageData.groups.map((group) => (
-              <div key={group.id} className="surface-card p-4">
+              <div key={group.id} className="glass-panel rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-white font-bold">{group.name}</h4>
                   <span className="text-white/50 text-xs">{group.playerIds.length} 人</span>
@@ -1270,7 +1351,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 {group.songs.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
                     {group.songs.map((s) => (
-                      <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dark-bg border border-dark-border/40">
+                      <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl glass-panel">
                         {s.song ? (
                           <>
                             <img src={s.song.cover} alt={s.song.name} className="w-9 h-9 rounded-lg object-cover" />
@@ -1291,7 +1372,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                     const p = stageData.players.find((pl) => pl.id === pid)
                     if (!p) return null
                     return (
-                      <div key={pid} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-dark-card border border-dark-border/40">
+                      <div key={pid} className="flex items-center gap-3 px-3 py-2 rounded-xl glass-panel">
                         {p.seed && <span className="text-yellow-400 font-mono text-xs w-6">#{p.seed}</span>}
                         <span className="flex-1 text-white text-sm font-bold">{p.name}</span>
 
@@ -1310,21 +1391,21 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                               value={p.score ?? ''}
                               onChange={(e) => handleScoreChange(p.id, e.target.value)}
                               placeholder="完成率"
-                              className="input-field w-28 text-right py-1.5 font-mono text-sm"
+                              className="input-refined w-28 text-right py-1.5 font-mono text-sm"
                             />
                             <input
                               type="text"
                               value={p.dxScore}
                               onChange={(e) => updatePlayer(currentStage, p.id, { dxScore: e.target.value })}
                               placeholder="DX分数"
-                              className="input-field w-28 text-right py-1.5 text-blue-300 font-mono text-sm"
+                              className="input-refined w-28 text-right py-1.5 text-blue-300 font-mono text-sm"
                             />
                           </>
                         )}
 
                         {p.rank !== null && (
                           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                            p.rank === 1 ? 'bg-yellow-500 text-yellow-900' : 'bg-dark-bg text-white/60'
+                            p.rank === 1 ? 'bg-yellow-500 text-yellow-900' : 'bg-white/5 text-white/60'
                           }`}>
                             {p.rank}
                           </span>
@@ -1340,21 +1421,39 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
         {/* 创建分组按钮（未锁定时） */}
         {!stageData.locked && stageData.players.length > 0 && stageData.groups.length === 0 && (
-          <div className="surface-card p-4 mb-4 flex flex-wrap gap-3 items-center">
+          <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
             <Swords size={20} className="text-blue-400" />
             <span className="text-sm font-semibold text-white/70">分组设置</span>
             {currentStage === '16to8' && (
-              <button onClick={createGroups16to8} className="btn-primary-2 text-sm">
+              <button
+                onClick={() => {
+                  const res = createGroups16to8()
+                  showToast(res.message, res.success ? 'success' : 'info')
+                }}
+                className="btn-primary press-down btn-shimmer text-sm"
+              >
                 <Swords size={16} /> 按种子自动配对 (1vs9...)
               </button>
             )}
             {currentStage === '8to4' && (
-              <button onClick={shuffleGroups8to4} className="btn-primary-2 text-sm">
+              <button
+                onClick={() => {
+                  const res = shuffleGroups8to4()
+                  showToast(res.message, res.success ? 'success' : 'info')
+                }}
+                className="btn-primary press-down btn-shimmer text-sm"
+              >
                 <Shuffle size={16} /> 随机抽签分两组
               </button>
             )}
             {currentStage === 'semi' && (
-              <button onClick={createGroupsSemi} className="btn-primary-2 text-sm">
+              <button
+                onClick={() => {
+                  const res = createGroupsSemi()
+                  showToast(res.message, res.success ? 'success' : 'info')
+                }}
+                className="btn-primary press-down btn-shimmer text-sm"
+              >
                 <Swords size={16} /> 1v3 / 2v4 对阵
               </button>
             )}
@@ -1362,10 +1461,10 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
         )}
 
         {/* 分数表格 */}
-        <div className="surface-card overflow-hidden">
+        <div className="glass-panel rounded-2xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="bg-dark-bg/70">
+              <tr className="bg-white/[0.03]">
                 <th className="px-4 py-3 text-left text-sm font-bold text-white/60 w-16">排名</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-white/60 w-16">种子</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-white/60">选手</th>
@@ -1377,8 +1476,8 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
               {stageData.players.map((player, index) => (
                 <tr
                   key={player.id}
-                  className={`border-t border-dark-border/40 transition-colors ${
-                    index % 2 === 0 ? 'bg-dark-card' : 'bg-dark-bg/50'
+                  className={`border-t border-white/10 transition-colors ${
+                    index % 2 === 0 ? 'bg-white/5' : 'bg-white/[0.02]'
                   }`}
                 >
                   <td className="px-4 py-3">
@@ -1391,7 +1490,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                             ? 'bg-white/70 text-gray-800'
                             : player.rank === 3
                             ? 'bg-orange-600 text-orange-100'
-                            : 'bg-dark-bg text-white/60'
+                            : 'bg-white/5 text-white/60'
                         }`}
                       >
                         {player.rank}
@@ -1422,7 +1521,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                           }
                         }}
                         placeholder="#"
-                        className="input-field w-16 py-2 text-yellow-400 font-mono text-sm"
+                        className="input-refined w-16 py-2 text-yellow-400 font-mono text-sm"
                       />
                     )}
                   </td>
@@ -1443,7 +1542,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                         value={player.score ?? ''}
                         onChange={(e) => handleScoreChange(player.id, e.target.value)}
                         placeholder="0.0000"
-                        className="input-field w-full text-right py-2 font-mono text-sm"
+                        className="input-refined w-full text-right py-2 font-mono text-sm"
                       />
                     )}
                   </td>
@@ -1458,7 +1557,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                         value={player.dxScore}
                         onChange={(e) => updatePlayer(currentStage, player.id, { dxScore: e.target.value })}
                         placeholder="自由填写"
-                        className="input-field w-full text-right py-2 text-blue-300 font-mono text-sm"
+                        className="input-refined w-full text-right py-2 text-blue-300 font-mono text-sm"
                       />
                     )}
                   </td>
@@ -1486,7 +1585,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
           if (advancedPlayers.length === 0) return null
 
           return (
-            <div className="mt-6 surface-card p-6 border border-green-500/40">
+            <div className="mt-6 glass-panel rounded-2xl p-6 border border-green-500/40">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <Trophy className="text-yellow-400" size={22} />
                 {getStageLabel(prevStage)} 晋级名单（前 {getAdvanceCount(prevStage)} 名）
@@ -1495,10 +1594,10 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 {advancedPlayers.map((p) => (
                   <div
                     key={p.id}
-                    className={`flex flex-col items-center gap-2 px-5 py-4 rounded-xl min-w-[140px] ${
+                    className={`flex flex-col items-center gap-2 px-5 py-4 rounded-xl min-w-[140px] glass-panel ${
                       prevStage === '16to8'
-                        ? 'bg-gradient-to-b from-blue-500/20 to-dark-card border-2 border-blue-400/50'
-                        : 'bg-gradient-to-b from-green-500/20 to-dark-card border border-green-500/40'
+                        ? 'border-blue-400/50 shadow-lg shadow-blue-500/10'
+                        : 'border-green-400/40 shadow-lg shadow-green-500/10'
                     }`}
                   >
                     {prevStage === '16to8' && (
@@ -1510,7 +1609,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                       p.rank === 1 ? 'bg-yellow-500 text-yellow-900' :
                       p.rank === 2 ? 'bg-white/70 text-gray-800' :
                       p.rank === 3 ? 'bg-orange-600 text-orange-100' :
-                      'bg-dark-bg text-white/60'
+                      'bg-white/5 text-white/60'
                     }`}>
                       {p.rank}
                     </span>
@@ -1528,7 +1627,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
 
         {/* 当前阶段已锁定：显示晋级单元块 */}
         {stageData.locked && stageData.players.filter((p) => p.advanced).length > 0 && (
-          <div className="mt-6 surface-card p-6 border border-green-500/40">
+          <div className="mt-6 glass-panel rounded-2xl p-6 border border-green-500/40">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <Trophy className="text-yellow-400" size={22} />
               {stageLabel} 晋级名单（前 {advanceCount} 名）
@@ -1540,13 +1639,13 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 .map((p) => (
                   <div
                     key={p.id}
-                    className="flex flex-col items-center gap-2 px-5 py-4 rounded-xl bg-gradient-to-b from-green-500/20 to-dark-card border border-green-500/40 min-w-[140px]"
+                    className="flex flex-col items-center gap-2 px-5 py-4 rounded-xl glass-panel border-green-400/40 shadow-lg shadow-green-500/10 min-w-[140px]"
                   >
                     <span className={`w-10 h-10 rounded-full font-black flex items-center justify-center ${
                       p.rank === 1 ? 'bg-yellow-500 text-yellow-900' :
                       p.rank === 2 ? 'bg-white/70 text-gray-800' :
                       p.rank === 3 ? 'bg-orange-600 text-orange-100' :
-                      'bg-dark-bg text-white/60'
+                      'bg-white/5 text-white/60'
                     }`}>
                       {p.rank}
                     </span>
