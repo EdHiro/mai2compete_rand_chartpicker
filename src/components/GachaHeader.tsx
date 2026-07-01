@@ -28,6 +28,7 @@ const difficultyConfig = [
   { value: 'EXPERT' as const, label: 'EXPERT', gradient: 'from-pink-500 to-rose-600', border: 'border-pink-400/50', shadow: 'shadow-pink-500/25', text: 'text-pink-200' },
   { value: 'MASTER' as const, label: 'MASTER', gradient: 'from-purple-500 to-purple-700', border: 'border-purple-400/50', shadow: 'shadow-purple-500/25', text: 'text-purple-200' },
   { value: 'Re:MASTER' as const, label: 'Re:MASTER', gradient: 'from-amber-400 to-orange-500', border: 'border-amber-400/50', shadow: 'shadow-amber-500/25', text: 'text-amber-200' },
+  { value: 'UTAGE' as const, label: 'UTAGE', gradient: 'from-cyan-500 to-blue-600', border: 'border-cyan-400/50', shadow: 'shadow-cyan-500/25', text: 'text-cyan-200' },
 ]
 
 function parseLevelValue(level: number, isPlus: boolean): number {
@@ -147,7 +148,7 @@ export default function GachaHeader() {
     if (genreFilter) count++
     if (includePlusOnly) count++
     if (minLevel !== '1' || maxLevel !== '15') count++
-    if (activeFilters.size < 5) count++
+    if (activeFilters.size < 6) count++
     if (chartTypeFilter.size < 2) count++
     return count
   }, [genreFilter, includePlusOnly, minLevel, maxLevel, activeFilters, chartTypeFilter])
@@ -273,7 +274,7 @@ export default function GachaHeader() {
                 已启用
               </span>
               <div className="flex items-center gap-2">
-                {activeFilters.size < 5 && (
+                {activeFilters.size < 6 && (
                   <span className="badge-info whitespace-nowrap">难度: {[...activeFilters].join(', ')}</span>
                 )}
                 {chartTypeFilter.size < 2 && (

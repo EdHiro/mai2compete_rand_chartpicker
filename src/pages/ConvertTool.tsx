@@ -26,6 +26,7 @@ function mapDifficultyName(name: any) {
   if (n.includes('master') && !n.includes('re')) return 'MASTER'
   if (n.includes('re') || n.includes('re:') || n.includes('re:master') || n.includes('re_master')) return 'Re:MASTER'
   if (n === 'm' || n === 'master') return 'MASTER'
+  if (n.includes('utage') || n.includes('utg')) return 'UTAGE'
   return null
 }
 
@@ -56,6 +57,7 @@ const difficultyColorMap: Record<string, string> = {
   EXPERT: 'bg-difficulty-expert/20 text-difficulty-expertLight border-difficulty-expert/40',
   MASTER: 'bg-difficulty-master/20 text-difficulty-masterLight border-difficulty-master/40',
   'Re:MASTER': 'bg-difficulty-remaster/20 text-difficulty-remasterLight border-difficulty-remaster/40',
+  UTAGE: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/40',
 }
 
 function difficultyBadgeClass(diff: string): string {
@@ -108,7 +110,8 @@ export default function ConvertTool() {
             { key: 'lev_mas', difficulty: 'MASTER', chartType: 'standard' },
             { key: 'lev_adv', difficulty: 'ADVANCED', chartType: 'standard' },
             { key: 'lev_bas', difficulty: 'BASIC', chartType: 'standard' },
-            { key: 'lev_remas', difficulty: 'Re:MASTER', chartType: 'standard' }
+            { key: 'lev_remas', difficulty: 'Re:MASTER', chartType: 'standard' },
+            { key: 'lev_utage', difficulty: 'UTAGE', chartType: 'standard' }
           ]
           for (const m of mapping) {
             const raw = item[m.key]

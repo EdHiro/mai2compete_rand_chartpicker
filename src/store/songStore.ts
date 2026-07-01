@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { broadcastSyncEvent } from '@/utils/tabSync'
 import { fetchMusicData } from '@/api/divingFish'
 
-export type Difficulty = 'BASIC' | 'ADVANCED' | 'EXPERT' | 'MASTER' | 'Re:MASTER'
+export type Difficulty = 'BASIC' | 'ADVANCED' | 'EXPERT' | 'MASTER' | 'Re:MASTER' | 'UTAGE'
 export type ChartType = 'dx' | 'standard'
 
 export interface Song {
@@ -210,7 +210,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
   perPoolDrawCounts: persisted.perPoolDrawCounts || {},
   selectedSong: null,
   selectedSongs: [],
-  activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER']),
+  activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']),
   minLevel: '1',
   maxLevel: '15',
   includePlusOnly: false,
@@ -503,7 +503,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   resetAllFilters: () => {
     set({
-      activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER']),
+      activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']),
       chartTypeFilter: new Set(['dx', 'standard']),
       genreFilter: '',
       minLevel: '1',

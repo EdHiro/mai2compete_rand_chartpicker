@@ -17,6 +17,7 @@ const DIFFICULTY_CONFIG: { value: Difficulty | 'ALL'; label: string; gradient: s
   { value: 'EXPERT', label: 'EXP', gradient: 'from-pink-500 to-rose-600', border: 'border-pink-400/50' },
   { value: 'MASTER', label: 'MST', gradient: 'from-purple-500 to-purple-700', border: 'border-purple-400/50' },
   { value: 'Re:MASTER', label: 'Re:', gradient: 'from-amber-400 to-orange-500', border: 'border-amber-400/50' },
+  { value: 'UTAGE', label: 'UTG', gradient: 'from-cyan-500 to-blue-600', border: 'border-cyan-400/50' },
 ]
 
 // 玩家颜色配置（用于多玩家模式标识）
@@ -37,6 +38,7 @@ const SelectorSongCard = memo(({ song, isSelected, isFocused, onClick }: { song:
       case 'EXPERT': return 'from-pink-500/80 to-rose-600/80 border-pink-400/50'
       case 'MASTER': return 'from-purple-500/80 to-purple-700/80 border-purple-400/50'
       case 'Re:MASTER': return 'from-amber-400/80 to-orange-500/80 border-amber-400/50'
+      case 'UTAGE': return 'from-cyan-500/80 to-blue-600/80 border-cyan-400/50'
       default: return 'from-gray-500/80 to-gray-600/80 border-gray-400/50'
     }
   }

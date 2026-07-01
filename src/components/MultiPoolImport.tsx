@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo } from 'react'
 import { Upload, Trash2, Database, AlertCircle, CheckCircle, Square, Shuffle, Layers, Eye, Minus, Plus } from 'lucide-react'
-import { useSongStore, type Song, type Difficulty, type ChartType, type MultiDrawMode } from '@/store/songStore'
+import { useSongStore, type Song, type Difficulty, type ChartType } from '@/store/songStore'
 import { cn } from '@/lib/utils'
 
 interface PoolImportResult {
@@ -407,7 +407,7 @@ function validateAndParseSongs(data: unknown): ValidationResult {
   }
 
   const songs: Song[] = []
-  const validDifficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER']
+  const validDifficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']
   const validChartTypes: ChartType[] = ['dx', 'standard']
 
   for (let i = 0; i < data.length; i++) {
@@ -433,10 +433,10 @@ function validateAndParseSongs(data: unknown): ValidationResult {
       return { success: false, error: `第 ${i + 1} 项: name 必须是字符串` }
     }
     if (!validDifficulties.includes(obj.difficulty as Difficulty)) {
-      return { success: false, error: `第 ${i + 1} 项: difficulty 必须是 BASIC、ADVANCED、EXPERT、MASTER 或 Re:MASTER` }
+      return { success: false, error: `第 ${i + 1} 项: difficulty 必须是 BASIC、ADVANCED、EXPERT、MASTER、Re:MASTER 或 UTAGE` }
     }
-    if (typeof obj.level !== 'number' || obj.level < 1 || obj.level > 15) {
-      return { success: false, error: `第 ${i + 1} 项: level 必须是 1-15 之间的数字` }
+    if (typeof obj.level !== 'number' || obj.level < 0 || obj.level > 15) {
+      return { success: false, error: `第 ${i + 1} 项: level 必须是 0-15 之间的数字` }
     }
     if (typeof obj.isPlus !== 'boolean') {
       return { success: false, error: `第 ${i + 1} 项: isPlus 必须是布尔值` }

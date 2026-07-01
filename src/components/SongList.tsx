@@ -13,6 +13,7 @@ const DIFFICULTY_META: Record<Difficulty, { short: string; dot: string; text: st
   EXPERT: { short: 'EXP', dot: 'bg-pink-500', text: 'text-pink-300' },
   MASTER: { short: 'MST', dot: 'bg-violet-500', text: 'text-violet-300' },
   'Re:MASTER': { short: 'ReM', dot: 'bg-fuchsia-400', text: 'text-fuchsia-300' },
+  UTAGE: { short: 'UTG', dot: 'bg-cyan-400', text: 'text-cyan-300' },
 }
 
 function parseLevelValue(level: number, isPlus: boolean): number {
@@ -88,7 +89,7 @@ export default function SongList() {
   // 各难度数量分布
   const difficultyStats = useMemo(() => {
     const stats: Record<Difficulty, number> = {
-      BASIC: 0, ADVANCED: 0, EXPERT: 0, MASTER: 0, 'Re:MASTER': 0,
+      BASIC: 0, ADVANCED: 0, EXPERT: 0, MASTER: 0, 'Re:MASTER': 0, UTAGE: 0,
     }
     for (const song of filteredSongs) {
       stats[song.difficulty]++
@@ -98,7 +99,7 @@ export default function SongList() {
 
   // 是否处于默认筛选状态（用于决定是否显示回显条）
   const isDefaultFilter = useMemo(() => {
-    return activeFilters.size === 5
+    return activeFilters.size === 6
       && chartTypeFilter.size === 2
       && !genreFilter
       && minLevel === '1'
@@ -121,7 +122,7 @@ export default function SongList() {
   const filterChips = useMemo(() => {
     const chips: { key: string; label: string; onRemove: () => void; tone: string }[] = []
     // 难度（仅当未全选时显示激活项）
-    if (activeFilters.size < 5) {
+    if (activeFilters.size < 6) {
       for (const diff of activeFilters) {
         const meta = DIFFICULTY_META[diff]
         chips.push({

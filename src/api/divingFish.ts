@@ -1,4 +1,4 @@
-import type { Song, Difficulty, ChartType } from '@/store/songStore'
+import type { Song, Difficulty } from '@/store/songStore'
 
 // lxns.net API 返回的谱面难度数据结构
 interface LxnsSongDifficulty {
@@ -49,8 +49,9 @@ const DIFFICULTY_MAP: Record<number, Difficulty> = {
 // 解析等级字符串 "13+" -> { level: 13, isPlus: true }
 function parseLevel(levelStr: string): { level: number; isPlus: boolean } {
   const isPlus = levelStr.includes('+')
-  const level = parseInt(levelStr.replace('+', ''), 10)
-  return { level: isNaN(level) ? 1 : level, isPlus }
+  const cleaned = levelStr.replace('+', '').trim()
+  const level = /\d/.test(cleaned) ? parseInt(cleaned, 10) : 0
+  return { level: isNaN(level) ? 0 : level, isPlus }
 }
 
 // 将 lxns.net API 返回的单首歌曲数据转换为应用内部的 Song 格式
@@ -83,6 +84,28 @@ function convertLxnsSong(song: LxnsSong): Song[] {
         difficultyAuthor: diff.note_designer ?? '',
         bpm,
         chartType,
+        genre: song.genre,
+        levelValue: diff.level_value ?? level + (isPlus ? 0.5 : 0),
+      })
+    }
+  }
+
+  // 处理 UTAGE 谱面
+  const utageDiffs = song.difficulties.utage
+  if (utageDiffs) {
+    for (const diff of utageDiffs) {
+      const { level, isPlus } = parseLevel(diff.level)
+      result.push({
+        id: `${song.id}-utage-${diff.difficulty}`,
+        name: title,
+        difficulty: 'UTAGE',
+        level,
+        isPlus,
+        cover,
+        author: artist,
+        difficultyAuthor: diff.note_designer ?? '',
+        bpm,
+        chartType: 'standard',
         genre: song.genre,
         levelValue: diff.level_value ?? level + (isPlus ? 0.5 : 0),
       })

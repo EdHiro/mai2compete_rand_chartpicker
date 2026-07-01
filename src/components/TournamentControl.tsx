@@ -4,24 +4,17 @@ import {
   type TournamentStage,
   type CustomStageConfig,
   type TournamentTemplate,
-  type MatchGroup,
-  type StageSong,
   STAGE_LABELS,
   STAGE_ORDER,
   STAGE_ADVANCE_COUNT,
 } from '@/store/tournamentStore'
-import type { Song } from '@/store/songStore'
 import { useToast } from '@/components/Toast'
 import { QRCodeSVG } from 'qrcode.react'
-import { Trophy, Lock, Unlock, ChevronRight, RotateCcw, Play, Save, Users, ArrowRight, Download, Upload, Clock, History, Trash2, Eye, X, LayoutList, Plus, Minus, Hash, FolderOpen, FolderPlus, Edit3, QrCode, Music, Swords, Shuffle, Undo2, Wifi, WifiOff, Timer } from 'lucide-react'
+import { Trophy, Lock, Unlock, ChevronRight, RotateCcw, Save, Users, Download, Upload, Clock, History, Trash2, Eye, X, LayoutList, Plus, Minus, Hash, FolderOpen, Edit3, QrCode, Music, Swords, Shuffle, Undo2, Wifi, WifiOff, Timer } from 'lucide-react'
 import { getConnectionStatus } from '@/utils/tabSync'
 import { cn } from '@/lib/utils'
 
-interface TournamentControlProps {
-  onSwitchPage?: (target: 'home' | 'selector' | 'tournament') => void
-}
-
-export default function TournamentControl({ onSwitchPage }: TournamentControlProps) {
+export default function TournamentControl() {
   const { showToast } = useToast()
   const {
     stages,
@@ -31,7 +24,6 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     customStages,
     previewRankings,
     rankingSnapshots,
-    setPlayerNames,
     updatePlayer,
     updatePlayerCheckIn,
     removePlayer,
@@ -64,22 +56,14 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     setPlayerSeed,
     applySeeding,
     autoUpdateSeedsFromRankings,
-    getStoredSeeds,
-    clearStoredSeeds,
     saveTemplate,
     loadTemplate,
     deleteTemplate,
     getTemplates,
-    setStageSongs,
-    addStageSong,
-    removeStageSong,
     createGroupsN216,
     createGroups16to8,
     shuffleGroups8to4,
     createGroupsSemi,
-    setGroupSongs,
-    addGroupSong,
-    removeGroupSong,
   } = useTournamentStore()
 
   const [playerNameInput, setPlayerNameInput] = useState('')
@@ -88,7 +72,7 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
   const [showHistory, setShowHistory] = useState(false)
   const [timerInputMin, setTimerInputMin] = useState(0)
   const [timerInputSec, setTimerInputSec] = useState(0)
-  const [timerCustomLabel, setTimerCustomLabel] = useState('')
+  const [timerCustomLabel] = useState('')
   const [checkinNames, setCheckinNames] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('tournament-checkin-names')
@@ -230,12 +214,6 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     setPlayerNameInput('')
   }
 
-  const handleRemovePlayer = (playerId: string) => {
-    if (confirm('确定要删除这个选手吗？')) {
-      removePlayer(currentStage, playerId)
-    }
-  }
-
   const handleScoreChange = (playerId: string, value: string) => {
     if (value === '') {
       updatePlayer(currentStage, playerId, { score: null })
@@ -341,9 +319,6 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
     const s = seconds % 60
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }, [])
-
-  // Get history list
-  const historyList = showHistory ? loadHistory() : []
 
   // 获取当前阶段晋级人数（支持自定义阶段）
   const getAdvanceCount = (stage: string): number => {
@@ -929,52 +904,6 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 </div>
               )}
 
-              {/* N进16 分组 */}
-              {stages.n216.players.length >= 16 && (
-                <div className="glass-panel rounded-2xl p-5 mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-white/80">小组赛分组</h4>
-                    <span className="text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded-full">课题曲统一</span>
-                  </div>
-                  {stages.n216.groups.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 stagger-children">
-                      {stages.n216.groups.map((g, idx) => (
-                        <div key={g.id} className="p-3 rounded-xl bg-white/5 border border-white/10">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
-                              {idx + 1}
-                            </span>
-                            <span className="text-xs text-white/60">{g.playerIds.length} 人</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {g.playerIds.map((pid) => {
-                              const p = stages.n216.players.find((pl) => pl.id === pid)
-                              return p ? (
-                                <span key={pid} className="text-xs text-white/90 px-2 py-0.5 rounded-md bg-white/5">
-                                  {p.name}
-                                </span>
-                              ) : null
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-white/40 text-sm mb-4">按种子排名两人为一组，高种子对阵低种子。</p>
-                  )}
-                  <button
-                    onClick={() => {
-                      const result = createGroupsN216()
-                      if (result.message) showToast(result.message, result.success ? 'success' : 'info')
-                    }}
-                    className="btn-primary press-down btn-shimmer"
-                  >
-                    <Swords size={16} />
-                    {stages.n216.groups.length > 0 ? '重新按种子分组' : '按种子生成分组'}
-                  </button>
-                </div>
-              )}
-
               {/* History section */}
               <div className="mb-6">
                 <button
@@ -1330,6 +1259,29 @@ export default function TournamentControl({ onSwitchPage }: TournamentControlPro
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* N进16 按种子分组（赛事开始后才可操作） */}
+        {currentStage === 'n216' && stageData.players.length >= 16 && (
+          <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Swords size={20} className="text-blue-400" />
+              <div>
+                <h3 className="text-base font-bold text-white">小组赛分组</h3>
+                <p className="text-xs text-white/40">按种子排名两人为一组，高种子对阵低种子</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const result = createGroupsN216()
+                if (result.message) showToast(result.message, result.success ? 'success' : 'info')
+              }}
+              className="btn-primary press-down btn-shimmer text-sm"
+            >
+              <Swords size={16} />
+              {stageData.groups.length > 0 ? '重新按种子分组' : '按种子生成分组'}
+            </button>
           </div>
         )}
 

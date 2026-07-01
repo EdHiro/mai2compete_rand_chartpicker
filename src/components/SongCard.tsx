@@ -16,6 +16,7 @@ const GLOW_COLORS: Record<Difficulty, string> = {
   EXPERT: 'rgba(255, 68, 136, 0.6)',
   MASTER: 'rgba(153, 68, 255, 0.65)',
   'Re:MASTER': 'rgba(255, 170, 0, 0.7)',
+  UTAGE: 'rgba(34, 211, 238, 0.65)',
 }
 
 const SongCard = memo(({ song, isDrawn = false }: SongCardProps) => {

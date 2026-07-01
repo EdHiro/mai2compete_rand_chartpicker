@@ -2,8 +2,40 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Download, Plus, Trash2, Edit2, Save, X, ChevronLeft, ChevronRight, Search, ArrowUpDown } from 'lucide-react'
 import { useSongStore, type Song, type Difficulty, type ChartType } from '@/store/songStore'
 import { cn } from '@/lib/utils'
+import SongCard from './SongCard'
 
 const PAGE_SIZE = 50
+const PREVIEW_SCALE = 0.55
+
+function parseUtageLevel(value: string): { level: number; isPlus: boolean } {
+  const trimmed = value.trim()
+  const isPlus = trimmed.includes('+')
+  const numMatch = trimmed.match(/\d+/)
+  const level = numMatch ? parseInt(numMatch[0], 10) : 0
+  return { level: Math.min(Math.max(level, 0), 15), isPlus }
+}
+
+function formatUtageLevel(level: number, isPlus: boolean): string {
+  return `${level}${isPlus ? '+' : ''}?`
+}
+
+function ScaledSongCard({ song }: { song: Song }) {
+  const width = 300 * PREVIEW_SCALE
+  const height = 520 * PREVIEW_SCALE
+  return (
+    <div
+      className="relative rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
+      style={{ width, height }}
+    >
+      <div
+        className="absolute top-0 left-0"
+        style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}
+      >
+        <SongCard song={song} />
+      </div>
+    </div>
+  )
+}
 
 type SearchField = 'name' | 'author' | 'bpm' | 'levelValue' | 'difficultyAuthor'
 type SortField = 'name' | 'level' | 'bpm' | 'levelValue'
@@ -27,6 +59,8 @@ export default function SongListEditor() {
     genre: '',
     levelValue: 10.0,
   })
+  const [newUtageLevelText, setNewUtageLevelText] = useState(formatUtageLevel(10, false))
+  const [editingUtageLevelTexts, setEditingUtageLevelTexts] = useState<Map<string, string>>(new Map())
   const [currentPage, setCurrentPage] = useState(0)
 
   // 搜索与排序状态
@@ -72,6 +106,11 @@ export default function SongListEditor() {
     [filteredAndSortedSongs, currentPage]
   )
 
+  const previewNewSong: Song = useMemo(
+    () => ({ id: 'preview-new-song', ...newSong }),
+    [newSong]
+  )
+
   const toggleEdit = useCallback((song: Song) => {
     setEditingSongs(prev => {
       const next = new Map(prev)
@@ -79,6 +118,15 @@ export default function SongListEditor() {
         next.delete(song.id)
       } else {
         next.set(song.id, { ...song })
+      }
+      return next
+    })
+    setEditingUtageLevelTexts(prev => {
+      const next = new Map(prev)
+      if (next.has(song.id)) {
+        next.delete(song.id)
+      } else if (song.difficulty === 'UTAGE') {
+        next.set(song.id, formatUtageLevel(song.level, song.isPlus))
       }
       return next
     })
@@ -243,107 +291,141 @@ export default function SongListEditor() {
       {showForm && (
         <div className="mb-6 p-6 rounded-3xl glass-panel">
           <h3 className="text-xl font-bold text-white mb-4">添加新谱面</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">歌曲名称</label>
-              <input
-                type="text"
-                value={newSong.name}
-                onChange={e => setNewSong({ ...newSong, name: e.target.value })}
-                className="input-refined w-full text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">难度</label>
-              <select
-                value={newSong.difficulty}
-                onChange={e => setNewSong({ ...newSong, difficulty: e.target.value as Difficulty })}
-                className="input-refined w-full text-sm"
-              >
-                <option value="EXPERT">EXPERT</option>
-                <option value="MASTER">MASTER</option>
-                <option value="Re:MASTER">Re:MASTER</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">等级</label>
-              <input
-                type="number"
-                min="1"
-                max="15"
-                value={newSong.level}
-                onChange={e => setNewSong({ ...newSong, level: parseInt(e.target.value) || 10 })}
-                className="input-refined w-full text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 text-white/80 font-bold text-sm">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">歌曲名称</label>
                 <input
-                  type="checkbox"
-                  checked={newSong.isPlus}
-                  onChange={e => setNewSong({ ...newSong, isPlus: e.target.checked })}
-                  className="w-5 h-5 rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-cyan-400/30"
+                  type="text"
+                  value={newSong.name}
+                  onChange={e => setNewSong({ ...newSong, name: e.target.value })}
+                  className="input-refined w-full text-sm"
                 />
-                +号
-              </label>
-              <label className="flex items-center gap-2 text-white/80 font-bold text-sm">
-                <span>谱面类型</span>
-                <select
-                  value={newSong.chartType}
-                  onChange={e => setNewSong({ ...newSong, chartType: e.target.value as ChartType })}
-                  className="input-refined w-auto text-sm py-1.5 px-2"
-                >
-                  <option value="standard">Standard</option>
-                  <option value="dx">DX</option>
-                </select>
-              </label>
+              </div>
+              <div>
+                  <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">难度</label>
+                  <select
+                    value={newSong.difficulty}
+                    onChange={e => {
+                      const difficulty = e.target.value as Difficulty
+                      setNewSong({ ...newSong, difficulty })
+                      if (difficulty === 'UTAGE' && newSong.difficulty !== 'UTAGE') {
+                        setNewUtageLevelText(formatUtageLevel(newSong.level, newSong.isPlus))
+                      }
+                    }}
+                    className="input-refined w-full text-sm"
+                  >
+                    <option value="BASIC">BASIC</option>
+                    <option value="ADVANCED">ADVANCED</option>
+                    <option value="EXPERT">EXPERT</option>
+                    <option value="MASTER">MASTER</option>
+                    <option value="Re:MASTER">Re:MASTER</option>
+                    <option value="UTAGE">UTAGE</option>
+                  </select>
+                </div>
+                {newSong.difficulty === 'UTAGE' ? (
+                <div>
+                  <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">等级</label>
+                  <input
+                    type="text"
+                    value={newUtageLevelText}
+                    placeholder="12? 或 12+?"
+                    onChange={e => {
+                      setNewUtageLevelText(e.target.value)
+                      const { level, isPlus } = parseUtageLevel(e.target.value)
+                      setNewSong(prev => ({ ...prev, level, isPlus }))
+                    }}
+                    className="input-refined w-full text-sm"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">等级</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="15"
+                    value={newSong.level}
+                    onChange={e => setNewSong({ ...newSong, level: parseInt(e.target.value) || 10 })}
+                    className="input-refined w-full text-sm"
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-6">
+                {newSong.difficulty !== 'UTAGE' && (
+                  <label className="flex items-center gap-2 text-white/80 font-bold text-sm">
+                    <input
+                      type="checkbox"
+                      checked={newSong.isPlus}
+                      onChange={e => setNewSong({ ...newSong, isPlus: e.target.checked })}
+                      className="w-5 h-5 rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-cyan-400/30"
+                    />
+                    +号
+                  </label>
+                )}
+                <label className="flex items-center gap-2 text-white/80 font-bold text-sm">
+                  <span>谱面类型</span>
+                  <select
+                    value={newSong.chartType}
+                    onChange={e => setNewSong({ ...newSong, chartType: e.target.value as ChartType })}
+                    className="input-refined w-auto text-sm py-1.5 px-2"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="dx">DX</option>
+                  </select>
+                </label>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">封面路径</label>
+                <input
+                  type="text"
+                  value={newSong.cover}
+                  onChange={e => setNewSong({ ...newSong, cover: e.target.value })}
+                  className="input-refined w-full text-sm"
+                  placeholder="./public/covers/cover.png"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">BPM</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newSong.bpm}
+                  onChange={e => setNewSong({ ...newSong, bpm: parseInt(e.target.value) || 120 })}
+                  className="input-refined w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">作曲家</label>
+                <input
+                  type="text"
+                  value={newSong.author}
+                  onChange={e => setNewSong({ ...newSong, author: e.target.value })}
+                  className="input-refined w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">流派</label>
+                <input
+                  type="text"
+                  value={newSong.genre}
+                  onChange={e => setNewSong({ ...newSong, genre: e.target.value })}
+                  className="input-refined w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">谱师</label>
+                <input
+                  type="text"
+                  value={newSong.difficultyAuthor}
+                  onChange={e => setNewSong({ ...newSong, difficultyAuthor: e.target.value })}
+                  className="input-refined w-full text-sm"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">封面路径</label>
-              <input
-                type="text"
-                value={newSong.cover}
-                onChange={e => setNewSong({ ...newSong, cover: e.target.value })}
-                className="input-refined w-full text-sm"
-                placeholder="./public/covers/cover.png"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">BPM</label>
-              <input
-                type="number"
-                min="0"
-                value={newSong.bpm}
-                onChange={e => setNewSong({ ...newSong, bpm: parseInt(e.target.value) || 120 })}
-                className="input-refined w-full text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">作曲家</label>
-              <input
-                type="text"
-                value={newSong.author}
-                onChange={e => setNewSong({ ...newSong, author: e.target.value })}
-                className="input-refined w-full text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">流派</label>
-              <input
-                type="text"
-                value={newSong.genre}
-                onChange={e => setNewSong({ ...newSong, genre: e.target.value })}
-                className="input-refined w-full text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-white/50 uppercase tracking-wider mb-1.5">谱师</label>
-              <input
-                type="text"
-                value={newSong.difficultyAuthor}
-                onChange={e => setNewSong({ ...newSong, difficultyAuthor: e.target.value })}
-                className="input-refined w-full text-sm"
-              />
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-xs font-bold text-white/50 uppercase tracking-wider">卡片预览</p>
+              <ScaledSongCard song={previewNewSong} />
             </div>
           </div>
           <div className="flex gap-3 mt-5">
@@ -404,108 +486,145 @@ export default function SongListEditor() {
               )}
             >
               {isEditing ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">歌曲名称</label>
-                    <input
-                      type="text"
-                      value={editedSong.name}
-                      onChange={e => updateSong(song.id, 'name', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">难度</label>
-                    <select
-                      value={editedSong.difficulty}
-                      onChange={e => updateSong(song.id, 'difficulty', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    >
-                      <option value="EXPERT">EXPERT</option>
-                      <option value="MASTER">MASTER</option>
-                      <option value="Re:MASTER">Re:MASTER</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">等级</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="15"
-                      value={editedSong.level}
-                      onChange={e => updateSong(song.id, 'level', parseInt(e.target.value) || 10)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-white/80 font-bold text-xs">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">歌曲名称</label>
                       <input
-                        type="checkbox"
-                        checked={editedSong.isPlus}
-                        onChange={e => updateSong(song.id, 'isPlus', e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-cyan-400/30"
+                        type="text"
+                        value={editedSong.name}
+                        onChange={e => updateSong(song.id, 'name', e.target.value)}
+                        className="input-refined w-full text-xs py-1.5 px-2"
                       />
-                      +
-                    </label>
-                    <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">BPM</label>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">难度</label>
+                      <select
+                        value={editedSong.difficulty}
+                        onChange={e => {
+                          const difficulty = e.target.value as Difficulty
+                          updateSong(song.id, 'difficulty', difficulty)
+                          if (difficulty === 'UTAGE') {
+                            setEditingUtageLevelTexts(prev =>
+                              new Map(prev).set(song.id, formatUtageLevel(editedSong.level, editedSong.isPlus))
+                            )
+                          }
+                        }}
+                        className="input-refined w-full text-xs py-1.5 px-2"
+                      >
+                        <option value="BASIC">BASIC</option>
+                        <option value="ADVANCED">ADVANCED</option>
+                        <option value="EXPERT">EXPERT</option>
+                        <option value="MASTER">MASTER</option>
+                        <option value="Re:MASTER">Re:MASTER</option>
+                        <option value="UTAGE">UTAGE</option>
+                      </select>
+                    </div>
+                    {editedSong.difficulty === 'UTAGE' ? (
+                      <div>
+                        <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">等级</label>
+                        <input
+                          type="text"
+                          value={editingUtageLevelTexts.get(song.id) ?? formatUtageLevel(editedSong.level, editedSong.isPlus)}
+                          placeholder="12? 或 12+?"
+                          onChange={e => {
+                            setEditingUtageLevelTexts(prev => new Map(prev).set(song.id, e.target.value))
+                            const { level, isPlus } = parseUtageLevel(e.target.value)
+                            updateSong(song.id, 'level', level)
+                            updateSong(song.id, 'isPlus', isPlus)
+                          }}
+                          className="input-refined w-full text-xs py-1.5 px-2"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">等级</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="15"
+                          value={editedSong.level}
+                          onChange={e => updateSong(song.id, 'level', parseInt(e.target.value) || 10)}
+                          className="input-refined w-full text-xs py-1.5 px-2"
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4">
+                      {editedSong.difficulty !== 'UTAGE' && (
+                        <label className="flex items-center gap-2 text-white/80 font-bold text-xs">
+                          <input
+                            type="checkbox"
+                            checked={editedSong.isPlus}
+                            onChange={e => updateSong(song.id, 'isPlus', e.target.checked)}
+                            className="w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-cyan-400/30"
+                          />
+                          +
+                        </label>
+                      )}
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">BPM</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editedSong.bpm}
+                          onChange={e => updateSong(song.id, 'bpm', parseInt(e.target.value) || 120)}
+                          className="input-refined w-full text-xs py-1.5 px-2"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">封面路径</label>
                       <input
-                        type="number"
-                        min="0"
-                        value={editedSong.bpm}
-                        onChange={e => updateSong(song.id, 'bpm', parseInt(e.target.value) || 120)}
+                        type="text"
+                        value={editedSong.cover}
+                        onChange={e => updateSong(song.id, 'cover', e.target.value)}
+                        className="input-refined w-full text-xs py-1.5 px-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">谱面类型</label>
+                      <select
+                        value={editedSong.chartType}
+                        onChange={e => updateSong(song.id, 'chartType', e.target.value)}
+                        className="input-refined w-full text-xs py-1.5 px-2"
+                      >
+                        <option value="standard">Standard</option>
+                        <option value="dx">DX</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">作曲家</label>
+                      <input
+                        type="text"
+                        value={editedSong.author}
+                        onChange={e => updateSong(song.id, 'author', e.target.value)}
+                        className="input-refined w-full text-xs py-1.5 px-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">流派</label>
+                      <input
+                        type="text"
+                        value={editedSong.genre}
+                        onChange={e => updateSong(song.id, 'genre', e.target.value)}
+                        className="input-refined w-full text-xs py-1.5 px-2"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">谱师</label>
+                      <input
+                        type="text"
+                        value={editedSong.difficultyAuthor}
+                        onChange={e => updateSong(song.id, 'difficultyAuthor', e.target.value)}
                         className="input-refined w-full text-xs py-1.5 px-2"
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">封面路径</label>
-                    <input
-                      type="text"
-                      value={editedSong.cover}
-                      onChange={e => updateSong(song.id, 'cover', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    />
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">卡片预览</p>
+                    <ScaledSongCard song={editedSong} />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">谱面类型</label>
-                    <select
-                      value={editedSong.chartType}
-                      onChange={e => updateSong(song.id, 'chartType', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="dx">DX</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">作曲家</label>
-                    <input
-                      type="text"
-                      value={editedSong.author}
-                      onChange={e => updateSong(song.id, 'author', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">流派</label>
-                    <input
-                      type="text"
-                      value={editedSong.genre}
-                      onChange={e => updateSong(song.id, 'genre', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">谱师</label>
-                    <input
-                      type="text"
-                      value={editedSong.difficultyAuthor}
-                      onChange={e => updateSong(song.id, 'difficultyAuthor', e.target.value)}
-                      className="input-refined w-full text-xs py-1.5 px-2"
-                    />
-                  </div>
-                  <div className="lg:col-span-2 flex gap-2 items-end">
+                  <div className="lg:col-span-full flex gap-2 items-end">
                     <button
                       onClick={() => saveEdit(song.id)}
                       className="btn-primary text-xs py-1.5 px-3"

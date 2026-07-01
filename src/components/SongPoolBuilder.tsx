@@ -260,6 +260,7 @@ export default function SongPoolBuilder() {
           <option value="EXPERT">EXPERT</option>
           <option value="MASTER">MASTER</option>
           <option value="Re:MASTER">Re:MASTER</option>
+          <option value="UTAGE">UTAGE</option>
         </select>
         <select
           value={filterChartType}
@@ -400,7 +401,8 @@ export default function SongPoolBuilder() {
                 song.difficulty === 'ADVANCED' ? 'bg-sky-500/15 text-sky-200 border-sky-500/30' :
                 song.difficulty === 'EXPERT' ? 'bg-pink-500/15 text-pink-200 border-pink-500/30' :
                 song.difficulty === 'MASTER' ? 'bg-violet-500/15 text-violet-200 border-violet-500/30' :
-                'bg-amber-500/15 text-amber-200 border-amber-500/30'
+                song.difficulty === 'Re:MASTER' ? 'bg-amber-500/15 text-amber-200 border-amber-500/30' :
+                'bg-cyan-500/15 text-cyan-200 border-cyan-500/30'
               )}>
                 {song.difficulty}
               </span>

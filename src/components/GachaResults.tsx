@@ -21,6 +21,8 @@ const getDifficultyCode = (difficulty: Difficulty): string => {
       return 'MST'
     case 'Re:MASTER':
       return 'MST_Re'
+    case 'UTAGE':
+      return 'UTG'
     default:
       return ''
   }

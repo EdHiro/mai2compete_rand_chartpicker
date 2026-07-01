@@ -103,6 +103,8 @@ function getDiffColor(diff: string) {
       return 'from-purple-500/80 to-purple-700/80 border-purple-400/50'
     case 'Re:MASTER':
       return 'from-amber-400/80 to-orange-500/80 border-amber-400/50'
+    case 'UTAGE':
+      return 'from-cyan-500/80 to-blue-600/80 border-cyan-400/50'
     default:
       return 'from-gray-500/80 to-gray-600/80 border-gray-400/50'
   }
@@ -120,6 +122,8 @@ function getDiffCode(diff: Difficulty | string): string {
       return 'MST'
     case 'Re:MASTER':
       return 'Re:M'
+    case 'UTAGE':
+      return 'UTG'
     default:
       return diff.slice(0, 3)
   }
@@ -698,14 +702,16 @@ function StageInstructions({ stage, groupsCount }: { stage: string; groupsCount:
         '在「按规则同步曲库」中选择要使用的曲库（可多选并切换混合/按库模式）。',
         '点击「按阶段规则同步」抽取 2 首全组通用的课题曲，OBS 会自动展示。',
         '对局结束后在分组卡片内录入各选手达成率 / DX 分。',
-        '确认分数无误后，在分组卡片右上角点击「已完成」锁定该组分数。'
+        '确认分数无误后，在分组卡片右上角点击「已完成」锁定该组分数。',
+        '本阶段所有分组均锁定后，由赛事面板（排行榜页）计算排名并锁定本阶段。'
       )
       break
     case 'random-per-group':
       steps.push(
         '选择曲库后，每点击一次「按阶段规则同步」会依次为下一组生成 3 首不重复随机曲。',
         'OBS 会自动展示当前同步的分组；顶部下拉框也会自动跟随，可手动切换分组。',
-        '对局结束后先录入该组选手分数，再点击顶部「已完成」锁定分数编辑。'
+        '对局结束后先录入该组选手分数，再点击顶部「已完成」锁定分数编辑。',
+        '本阶段所有分组均锁定后，由赛事面板（排行榜页）计算排名并锁定本阶段。'
       )
       break
     case 'four-self':
@@ -715,14 +721,16 @@ function StageInstructions({ stage, groupsCount }: { stage: string; groupsCount:
           : '确认当前阶段有 4 名选手。',
         '等待该组 4 名选手在选曲页完成选曲。',
         '点击「同步到赛事」，OBS 会自动播放该组的展示动画（无需点击「按阶段规则同步」）。',
-        '对局结束后先录入该组 4 名选手分数，再点击顶部「已完成」锁定。'
+        '对局结束后先录入该组 4 名选手分数，再点击顶部「已完成」锁定。',
+        '本阶段所有分组均锁定后，由赛事面板（排行榜页）计算排名并锁定本阶段。'
       )
       break
     case 'two-plus-two':
       steps.push(
         '选择曲库，点击「按阶段规则同步」为当前分组生成 2 首随机曲，OBS 会自动展示。',
         '选手完成 2 首选曲后，点击「同步到赛事」即可将自选插入同一分组，OBS 会自动展示完整 2+2 排列。',
-        '对局结束后先录入该组 2 名选手分数，再点击顶部「已完成」锁定。'
+        '对局结束后先录入该组 2 名选手分数，再点击顶部「已完成」锁定。',
+        '本阶段所有分组均锁定后，由赛事面板（排行榜页）计算排名并锁定本阶段。'
       )
       break
   }

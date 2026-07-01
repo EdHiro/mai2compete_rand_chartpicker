@@ -7,6 +7,7 @@ const difficulties: { value: Difficulty; label: string; gradient: string; border
   { value: 'EXPERT', label: 'EXPERT', gradient: 'from-pink-500 to-rose-600', border: 'border-pink-400', text: 'text-pink-200' },
   { value: 'MASTER', label: 'MASTER', gradient: 'from-violet-500 to-purple-700', border: 'border-violet-400', text: 'text-violet-200' },
   { value: 'Re:MASTER', label: 'Re:MASTER', gradient: 'from-violet-400 to-fuchsia-500', border: 'border-fuchsia-400', text: 'text-fuchsia-200' },
+  { value: 'UTAGE', label: 'UTAGE', gradient: 'from-cyan-400 to-blue-600', border: 'border-cyan-400', text: 'text-cyan-200' },
 ]
 
 export default function DifficultyFilter() {

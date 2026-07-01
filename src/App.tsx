@@ -82,7 +82,7 @@ export default function App() {
           initialPlayerName={initialSelectorState.playerName}
         />
       </div>
-      {page === 'tournament' && <TournamentControl onSwitchPage={handleSwitchPage} />}
+      {page === 'tournament' && <TournamentControl />}
       {page === 'obs' && <OBSDisplay />}
       {page === 'obsTournament' && <OBSTournament />}
       {page === 'convert' && <ConvertTool />}

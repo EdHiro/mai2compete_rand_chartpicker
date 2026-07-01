@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo, memo } from 'react'
-import type { Song, Difficulty, ChartType } from '@/store/songStore'
+import type { Song, Difficulty } from '@/store/songStore'
 
 interface SongCardContentProps {
   song: Song
@@ -13,12 +13,13 @@ const DIFFICULTY_CODES: Record<Difficulty, string> = {
   EXPERT: 'EXP',
   MASTER: 'MST',
   'Re:MASTER': 'MST_Re',
+  UTAGE: 'UTG',
 }
 
 const IMAGE_CACHE = (() => {
   const cache: Record<string, string> = {}
-  const difficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER']
-  
+  const difficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']
+
   for (const diff of difficulties) {
     const code = DIFFICULTY_CODES[diff]
     cache[`bg-${diff}`] = `/levbg/Sprite/UI_TST_MBase_${code}.png`
@@ -31,6 +32,8 @@ const IMAGE_CACHE = (() => {
       cache[`num-${diff}-${i}`] = `/levbg/Sprite/UI_CMN_MusicLevel_${code}_${i}.png`
     }
   }
+  // UTAGE 额外问号贴图，位于 + 下方
+  cache['qmark-UTAGE'] = '/levbg/Sprite/UI_CMN_MusicLevel_UTG_qmark.png'
   return cache
 })()
 
@@ -79,8 +82,9 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
   // 使用预计算的图片缓存，避免运行时重复计算
   const { chartTypeText, chartTypeColor, cardBg, lvBg, levelIcon } = useMemo(() => {
     const isDx = song.chartType === 'dx'
+    const isUtage = song.difficulty === 'UTAGE'
     return {
-      chartTypeText: isDx ? 'DX谱面' : '标准谱面',
+      chartTypeText: isUtage ? 'UTAGE谱面' : isDx ? 'DX谱面' : '标准谱面',
       chartTypeColor: isDx ? 'text-red' : 'text-white',
       cardBg: IMAGE_CACHE[`bg-${song.difficulty}`],
       lvBg: IMAGE_CACHE[`lv-${song.difficulty}`],
@@ -89,14 +93,17 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
   }, [song.chartType, song.difficulty])
 
   const isPlus = song.isPlus
+  const isUtage = song.difficulty === 'UTAGE'
   const levelDigit1 = Math.floor(song.level / 10)
   const levelDigit2 = song.level % 10
-  const isSingleDigit = song.level < 10
+  const isSingleDigit = song.level < 10 && song.level > 0
 
   // 使用预计算的图片缓存
   const levelImages = useMemo(() => {
     const diff = song.difficulty
-    if (isSingleDigit) {
+    // UTAGE 等级为 0 时只显示问号，不显示数字
+    if (isUtage && song.level === 0) return []
+    if (isSingleDigit || song.level < 10) {
       return [{
         src: IMAGE_CACHE[`num-${diff}-${levelDigit2}`],
         alt: levelDigit2.toString(),
@@ -118,9 +125,10 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         mlClass: '-ml-3.5',
       },
     ]
-  }, [song.difficulty, isSingleDigit, levelDigit1, levelDigit2])
+  }, [song.difficulty, isUtage, song.level, isSingleDigit, levelDigit1, levelDigit2])
 
   const plusImage = isPlus ? IMAGE_CACHE[`plus-${song.difficulty}`] : null
+  const qmarkImage = isUtage ? IMAGE_CACHE['qmark-UTAGE'] : null
 
   return (
     <div className={`w-full h-full overflow-hidden ${className}`}>
@@ -143,7 +151,7 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         <img
           src={song.cover}
           alt={song.name}
-          className="w-[254px] h-[270px] object-cover"
+          className="w-[253px] h-[270px]  object-cover"
           loading="lazy"
         />
       </div>
@@ -239,6 +247,13 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
                 src={plusImage}
                 alt="+"
                 className="absolute left-full top-0 h-[45px] w-auto -ml-3.5"
+              />
+            )}
+            {qmarkImage && (
+              <img
+                src={qmarkImage}
+                alt="?"
+                className={`absolute left-full h-[30px] w-auto -ml-[9px] ${isPlus ? 'top-[20px]' : 'top-0'}`}
               />
             )}
           </div>

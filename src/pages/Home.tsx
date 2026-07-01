@@ -151,7 +151,7 @@ export default function Home({ onSwitchPage }: HomeProps) {
             </Suspense>
           )}
           {activeTab === 'poolBuilder' && <SongPoolBuilder />}
-          {activeTab === 'tournament' && <TournamentControl onSwitchPage={onSwitchPage} />}
+          {activeTab === 'tournament' && <TournamentControl />}
         </main>
       )}
     </div>
