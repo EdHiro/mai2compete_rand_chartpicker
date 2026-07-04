@@ -32,17 +32,37 @@ function MatchCard({
   const players = group.playerIds.map((id) => map.get(id)).filter(Boolean) as TournamentPlayer[]
   const advancedCount = players.filter((p) => p.advanced).length
   const isCompleted = group.completed || group.status === 'completed'
+  const isWaiting = !isCompleted && advancedCount === 0
+  // 按排名排序（已完成的对局展示更清晰）
+  const sortedPlayers = useMemo(() => {
+    if (!isCompleted) return players
+    return [...players].sort((a, b) => {
+      if (a.rank != null && b.rank != null) return a.rank - b.rank
+      if (a.rank != null) return -1
+      if (b.rank != null) return 1
+      return (b.score ?? -1) - (a.score ?? -1)
+    })
+  }, [players, isCompleted])
 
   return (
     <div
       className={cn(
-        'relative rounded-2xl p-3 min-w-[220px] border backdrop-blur-md transition-all',
+        'relative rounded-2xl p-3 min-w-[220px] border backdrop-blur-md transition-all duration-200',
         isCompleted
           ? 'bg-emerald-500/5 border-emerald-500/20'
-          : 'bg-white/[0.04] border-white/10 hover:border-white/20'
+          : isWaiting
+            ? 'bg-white/[0.02] border-white/5 opacity-80'
+            : 'bg-white/[0.04] border-white/10 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.25)]'
       )}
     >
-      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 via-violet-500 to-pink-500 opacity-60" />
+      <div
+        className={cn(
+          'absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r opacity-60',
+          isCompleted
+            ? 'from-emerald-400 via-emerald-500 to-emerald-400'
+            : 'from-cyan-400 via-violet-500 to-pink-500'
+        )}
+      />
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <Swords size={14} className="text-cyan-400 flex-shrink-0" />
@@ -53,37 +73,66 @@ function MatchCard({
             <CheckCircle2 size={10} />
             已完成
           </span>
-        ) : advancedCount > 0 ? (
+        ) : isWaiting ? (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-white/40 bg-white/5 px-1.5 py-0.5 rounded-full flex-shrink-0">
+            <Clock size={10} />
+            待开始
+          </span>
+        ) : (
           <span className="flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0">
             <Clock size={10} />
             进行中
           </span>
-        ) : null}
+        )}
       </div>
       <div className="space-y-2">
-        {players.map((p) => (
-          <div
-            key={p.id}
-            ref={(el) => registerRowRef?.(p.id, el)}
-            className={cn(
-              'flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs border',
-              p.advanced
-                ? 'bg-emerald-500/15 text-emerald-100 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.08)]'
-                : 'bg-white/5 text-white/70 border-white/5'
-            )}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {p.advanced && <Crown size={12} className="text-amber-400 flex-shrink-0" />}
-              <span className="truncate max-w-[110px]">{p.name}</span>
-              {p.seed && (
-                <span className="text-[9px] text-amber-300 bg-amber-500/10 px-1 py-0.5 rounded flex-shrink-0">
-                  种子{p.seed}
-                </span>
+        {sortedPlayers.map((p) => {
+          const isEliminated = p.eliminated || (isCompleted && !p.advanced)
+          return (
+            <div
+              key={p.id}
+              ref={(el) => registerRowRef?.(p.id, el)}
+              className={cn(
+                'flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs border transition-colors',
+                p.advanced
+                  ? 'bg-emerald-500/15 text-emerald-100 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.08)]'
+                  : isEliminated
+                    ? 'bg-white/[0.02] text-white/35 border-white/5 line-through decoration-white/20'
+                    : 'bg-white/5 text-white/70 border-white/5'
               )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {p.advanced && <Crown size={12} className="text-amber-400 flex-shrink-0" />}
+                {isCompleted && p.rank != null && (
+                  <span
+                    className={cn(
+                      'text-[9px] font-mono font-bold w-4 h-4 flex items-center justify-center rounded flex-shrink-0',
+                      p.rank === 1
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-white/5 text-white/50'
+                    )}
+                  >
+                    {p.rank}
+                  </span>
+                )}
+                <span className="truncate max-w-[110px]">{p.name}</span>
+                {p.seed && (
+                  <span className="text-[9px] text-amber-300 bg-amber-500/10 px-1 py-0.5 rounded flex-shrink-0">
+                    种子{p.seed}
+                  </span>
+                )}
+              </div>
+              <span
+                className={cn(
+                  'tabular-nums font-mono font-bold',
+                  p.score == null && 'text-white/20'
+                )}
+              >
+                {p.score?.toFixed(4) ?? '—'}
+              </span>
             </div>
-            <span className="tabular-nums font-mono font-bold">{p.score?.toFixed(4) ?? '-'}</span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -103,27 +152,53 @@ function StageColumn({
   const label = STAGE_LABELS[stage as keyof typeof STAGE_LABELS] || stage
   const groups = stageData.groups
   const completedGroups = groups.filter((g) => g.completed || g.status === 'completed').length
+  const totalGroups = groups.length
+  const progressPct = totalGroups > 0 ? Math.round((completedGroups / totalGroups) * 100) : 0
+  const isStageComplete = totalGroups > 0 && completedGroups === totalGroups
 
   return (
-    <div className="flex flex-col gap-6 min-w-[260px] z-10">
-      <div className="sticky left-0 bg-black/20 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+    <div className="flex flex-col gap-5 min-w-[240px] sm:min-w-[260px] z-10 h-full">
+      <div className="bg-black/30 backdrop-blur-md rounded-2xl p-4 border border-white/8 relative overflow-hidden flex-shrink-0">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center text-white text-xs font-black">
+          <div
+            className={cn(
+              'w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black',
+              isStageComplete
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
+                : 'bg-gradient-to-br from-cyan-500 to-violet-500'
+            )}
+          >
             {stageIdx + 1}
           </div>
-          <h2 className="text-lg font-bold text-white">{label}</h2>
+          <h2 className="text-base font-bold text-white">{label}</h2>
+          {isStageComplete && (
+            <CheckCircle2 size={14} className="text-emerald-400 ml-auto flex-shrink-0" />
+          )}
         </div>
-        <p className="text-xs text-white/40">
-          {stageData.players.length} 人 · {groups.length || 1} 场
-          {groups.length > 0 && (
+        <p className="text-xs text-white/40 mb-2">
+          {stageData.players.length} 人 · {totalGroups || 1} 场
+          {totalGroups > 0 && (
             <span className="ml-2 text-white/30">
-              · {completedGroups}/{groups.length} 完成
+              · {completedGroups}/{totalGroups} 完成
             </span>
           )}
         </p>
+        {totalGroups > 0 && (
+          <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-500',
+                isStageComplete
+                  ? 'bg-gradient-to-r from-emerald-400 to-teal-400'
+                  : 'bg-gradient-to-r from-cyan-400 to-violet-500'
+              )}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
       </div>
       {groups.length > 0 ? (
-        <div className="flex flex-col gap-6">
+        <div className="flex-1 flex flex-col justify-center gap-5 min-h-0">
           {groups.map((g, groupIdx) => (
             <MatchCard
               key={g.id}
@@ -134,8 +209,10 @@ function StageColumn({
           ))}
         </div>
       ) : (
-        <div className="glass-panel rounded-2xl p-4 text-center text-white/40 text-xs">
-          本阶段未生成分组
+        <div className="flex-1 flex items-center justify-center min-h-0">
+          <div className="glass-panel rounded-2xl p-4 text-center text-white/40 text-xs">
+            本阶段未生成分组
+          </div>
         </div>
       )}
     </div>
@@ -285,8 +362,11 @@ export default function BracketPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-x-auto relative" ref={containerRef}>
-        <div className="flex items-stretch gap-6 sm:gap-10 p-4 sm:p-8 min-w-max relative">
+      <main
+        className="flex-1 overflow-x-auto relative bracket-scroll"
+        ref={containerRef}
+      >
+        <div className="flex items-stretch gap-5 sm:gap-8 p-4 sm:p-8 min-w-max relative">
           <svg
             className="absolute top-0 left-0 pointer-events-none z-0"
             width={svgSize.width}
@@ -326,7 +406,7 @@ export default function BracketPage() {
               />
             </g>
           ))}
-          </svg>
+        </svg>
 
           {stageList.map(({ stage, data }, stageIdx) => (
             <StageColumn
@@ -337,17 +417,34 @@ export default function BracketPage() {
               registerRowRef={registerRowRef}
             />
           ))}
-          {champion && (
-            <div className="flex flex-col gap-4 min-w-[200px] justify-center z-10">
-              <div className="glass-panel rounded-2xl p-4 border border-amber-500/30 bg-amber-500/10">
-                <div className="flex items-center gap-2 mb-3">
-                  <Trophy size={18} className="text-amber-400" />
-                  <span className="text-sm font-bold text-white">冠军</span>
+          {champion ? (
+            <div className="flex flex-col gap-4 min-w-[220px] justify-center z-10">
+              <div className="relative glass-panel-strong rounded-2xl p-5 border border-amber-500/40 bg-gradient-to-br from-amber-500/15 to-amber-500/5 animate-glow-pulse">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-[10px] font-black text-black tracking-wider shadow-lg">
+                  CHAMPION
                 </div>
-                <div className="text-2xl font-black text-amber-300 truncate">{champion.name}</div>
-                <div className="text-xs text-white/50 mt-1">
-                  {champion.score?.toFixed(4) ?? ''}
+                <div className="flex flex-col items-center text-center gap-2">
+                  <Trophy
+                    size={36}
+                    className="text-amber-300 animate-float-soft drop-shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+                  />
+                  <span className="text-xs text-amber-200/60 uppercase tracking-widest">赛事冠军</span>
+                  <div className="text-2xl font-black text-amber-200 truncate max-w-full">
+                    {champion.name}
+                  </div>
+                  {champion.score != null && (
+                    <div className="text-xs text-amber-200/70 tabular-nums font-mono">
+                      {champion.score.toFixed(4)}
+                    </div>
+                  )}
                 </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 min-w-[220px] justify-center z-10">
+              <div className="rounded-2xl p-5 border border-dashed border-white/10 bg-white/[0.02] text-center">
+                <Crown size={28} className="mx-auto text-white/20 mb-2" />
+                <span className="text-xs text-white/30">冠军待定</span>
               </div>
             </div>
           )}

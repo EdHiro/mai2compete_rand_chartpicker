@@ -28,16 +28,21 @@ const getDifficultyCode = (difficulty: Difficulty): string => {
   }
 }
 
-const getCardBgImage = (difficulty: Difficulty): string => {
+const getCardBgImage = (difficulty: Difficulty, chartType: 'dx' | 'standard'): string => {
   const code = getDifficultyCode(difficulty)
-  return `/levbg/Sprite/UI_TST_MBase_${code}.png`
+  // UTAGE 没有 STD/DX 之分，沿用单一背景
+  if (difficulty === 'UTAGE') {
+    return `/levbg/Sprite/UI_TST_MBase_${code}.png`
+  }
+  const suffix = chartType === 'dx' ? 'DX' : 'STD'
+  return `/levbg/Sprite/UI_TST_MBase_${code}_${suffix}.png`
 }
 
 const ENTRANCE_BG = '/levbg/Sprite/UI_TST_MBase_DMY.png'
 
 const DrawCard = function ({ song, index, showFront, animationState }: DrawCardProps) {
   const isExiting = animationState === 'exit'
-  const bgForBack = isExiting ? getCardBgImage(song.difficulty) : ENTRANCE_BG
+  const bgForBack = isExiting ? getCardBgImage(song.difficulty, song.chartType) : ENTRANCE_BG
 
   return (
     <div

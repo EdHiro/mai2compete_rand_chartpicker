@@ -37,12 +37,17 @@ export default function SongList() {
   const minLevel = useSongStore((state) => state.minLevel)
   const maxLevel = useSongStore((state) => state.maxLevel)
   const includePlusOnly = useSongStore((state) => state.includePlusOnly)
+  const versionFilter = useSongStore((state) => state.versionFilter)
+  const designerFilter = useSongStore((state) => state.designerFilter)
+  const versions = useSongStore((state) => state.versions)
   const drawHistory = useSongStore((state) => state.drawHistory)
 
   const toggleFilter = useSongStore((state) => state.toggleFilter)
   const toggleChartTypeFilter = useSongStore((state) => state.toggleChartTypeFilter)
   const setGenreFilter = useSongStore((state) => state.setGenreFilter)
   const setIncludePlusOnly = useSongStore((state) => state.setIncludePlusOnly)
+  const setVersionFilter = useSongStore((state) => state.setVersionFilter)
+  const setDesignerFilter = useSongStore((state) => state.setDesignerFilter)
   const resetLevelFilter = useSongStore((state) => state.resetLevelFilter)
   const resetAllFilters = useSongStore((state) => state.resetAllFilters)
 
@@ -73,9 +78,11 @@ export default function SongList() {
       const songValue = parseLevelValue(song.level, song.isPlus)
       if (songValue < minValue || songValue > maxValue) return false
       if (includePlusOnly && !song.isPlus) return false
+      if (versionFilter !== 'ALL' && song.version !== versionFilter) return false
+      if (designerFilter && song.difficultyAuthor !== designerFilter) return false
       return true
     })
-  }, [activeSongs, activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly])
+  }, [activeSongs, activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly, versionFilter, designerFilter])
 
   // 已抽过数量（联动抽卡历史）
   const drawnCount = useMemo(() => {
@@ -105,7 +112,9 @@ export default function SongList() {
       && minLevel === '1'
       && maxLevel === '15'
       && !includePlusOnly
-  }, [activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly])
+      && versionFilter === 'ALL'
+      && !designerFilter
+  }, [activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly, versionFilter, designerFilter])
 
   // 筛选签名（网格淡入动画 key + 分页重置依赖）
   const filterSignature = useMemo(() => {
@@ -115,8 +124,10 @@ export default function SongList() {
       genreFilter,
       minLevel, maxLevel,
       includePlusOnly ? '1' : '0',
+      versionFilter === 'ALL' ? 'ALL' : String(versionFilter),
+      designerFilter,
     ].join('|')
-  }, [activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly])
+  }, [activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly, versionFilter, designerFilter])
 
   // 筛选回显 chips：仅展示非默认维度的激活项
   const filterChips = useMemo(() => {
@@ -153,6 +164,25 @@ export default function SongList() {
         tone: 'text-amber-300',
       })
     }
+    // 版本
+    if (versionFilter !== 'ALL') {
+      const versionTitle = versions.find((v) => v.version === versionFilter)?.title ?? String(versionFilter)
+      chips.push({
+        key: 'version',
+        label: versionTitle,
+        onRemove: () => setVersionFilter('ALL'),
+        tone: 'text-indigo-300',
+      })
+    }
+    // 谱师
+    if (designerFilter) {
+      chips.push({
+        key: 'designer',
+        label: designerFilter,
+        onRemove: () => setDesignerFilter(''),
+        tone: 'text-teal-300',
+      })
+    }
     // 定数范围
     if (minLevel !== '1' || maxLevel !== '15') {
       chips.push({
@@ -172,7 +202,7 @@ export default function SongList() {
       })
     }
     return chips
-  }, [activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly, toggleFilter, toggleChartTypeFilter, setGenreFilter, resetLevelFilter, setIncludePlusOnly])
+  }, [activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly, versionFilter, designerFilter, versions, toggleFilter, toggleChartTypeFilter, setGenreFilter, setVersionFilter, setDesignerFilter, resetLevelFilter, setIncludePlusOnly])
 
   const visibleSongs = useMemo(
     () => filteredSongs.slice(0, displayCount),

@@ -91,6 +91,19 @@ export default function TournamentControl() {
   const [templateNameInput, setTemplateNameInput] = useState('')
   const [showCustomStageEditor, setShowCustomStageEditor] = useState(false)
 
+  // 弹窗 Escape 关闭
+  useEffect(() => {
+    if (!showCustomStageEditor && !showTemplateManager && !showCheckInPanel) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setShowCustomStageEditor(false)
+      setShowTemplateManager(false)
+      setShowCheckInPanel(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showCustomStageEditor, showTemplateManager, showCheckInPanel])
+
   // 同步连接状态
   const [connStatus, setConnStatus] = useState<'connected' | 'connecting' | 'local-only'>(
     getConnectionStatus() as 'connected' | 'connecting' | 'local-only'
@@ -444,7 +457,7 @@ export default function TournamentControl() {
   const stageLabel = getStageLabel(currentStage)
 
   // 阶段导航项渲染
-  const renderStageNavItem = (stage: string, idx: number) => {
+  const renderStageNavItem = (stage: TournamentStage, idx: number) => {
     const isCompleted = stages[stage].locked && stages[stage].players.length > 0
     const isCurrent = stage === currentStage
     const isAvailable = idx === 0 || (stages[STAGE_ORDER[idx - 1]].locked && stages[STAGE_ORDER[idx - 1]].players.length > 0)
@@ -452,7 +465,7 @@ export default function TournamentControl() {
     return (
       <button
         key={stage}
-        onClick={() => isAvailable && setCurrentStage(stage as TournamentStage)}
+        onClick={() => isAvailable && setCurrentStage(stage)}
         disabled={!isAvailable}
         className={`w-full text-left px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
           isCurrent
@@ -970,7 +983,11 @@ export default function TournamentControl() {
 
           {/* 自定义阶段编辑器弹窗 */}
           {showCustomStageEditor && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div
+              className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+              role="dialog"
+              aria-modal="true"
+            >
               <div className="glass-panel rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1044,7 +1061,11 @@ export default function TournamentControl() {
 
           {/* 模板管理弹窗 */}
           {showTemplateManager && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div
+              className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+              role="dialog"
+              aria-modal="true"
+            >
               <div className="glass-panel rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1092,7 +1113,11 @@ export default function TournamentControl() {
             const wsUrl = `${wsProto}${window.location.hostname}:8765`
             const checkinUrl = `${window.location.origin}${window.location.pathname}?checkin=1&ws=${encodeURIComponent(wsUrl)}`
             return (
-              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+              <div
+                className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+                role="dialog"
+                aria-modal="true"
+              >
                 <div className="glass-panel rounded-2xl p-8 max-w-sm w-full text-center">
                   <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
                     <QrCode className="text-cyan-400" size={24} />
@@ -1380,7 +1405,7 @@ export default function TournamentControl() {
               <button
                 onClick={() => {
                   const res = createGroups16to8()
-                  showToast(res.message, res.success ? 'success' : 'info')
+                  showToast(res.message ?? '', res.success ? 'success' : 'info')
                 }}
                 className="btn-primary press-down btn-shimmer text-sm"
               >
@@ -1391,7 +1416,7 @@ export default function TournamentControl() {
               <button
                 onClick={() => {
                   const res = shuffleGroups8to4()
-                  showToast(res.message, res.success ? 'success' : 'info')
+                  showToast(res.message ?? '', res.success ? 'success' : 'info')
                 }}
                 className="btn-primary press-down btn-shimmer text-sm"
               >
@@ -1402,7 +1427,7 @@ export default function TournamentControl() {
               <button
                 onClick={() => {
                   const res = createGroupsSemi()
-                  showToast(res.message, res.success ? 'success' : 'info')
+                  showToast(res.message ?? '', res.success ? 'success' : 'info')
                 }}
                 className="btn-primary press-down btn-shimmer text-sm"
               >

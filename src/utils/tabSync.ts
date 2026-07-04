@@ -142,6 +142,8 @@ function connectWebSocket(): void {
       // WebSocket not available, fall back to localStorage only
       wsConnected = false
       setConnectionState('local-only')
+      // 主动调度重连，避免某些浏览器在 error 后不触发 close
+      scheduleReconnect()
     }
   } catch {
     // WebSocket not supported

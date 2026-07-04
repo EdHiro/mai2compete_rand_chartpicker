@@ -48,6 +48,7 @@ export default function SongListEditor() {
   const [showForm, setShowForm] = useState(false)
   const [newSong, setNewSong] = useState<Omit<Song, 'id'>>({
     name: '',
+    songId: 0,
     difficulty: 'EXPERT',
     level: 10,
     isPlus: false,
@@ -58,6 +59,7 @@ export default function SongListEditor() {
     chartType: 'standard',
     genre: '',
     levelValue: 10.0,
+    version: 0,
   })
   const [newUtageLevelText, setNewUtageLevelText] = useState(formatUtageLevel(10, false))
   const [editingUtageLevelTexts, setEditingUtageLevelTexts] = useState<Map<string, string>>(new Map())
@@ -193,6 +195,7 @@ export default function SongListEditor() {
     importSongs([...songs, song])
     setNewSong({
       name: '',
+      songId: 0,
       difficulty: 'EXPERT',
       level: 10,
       isPlus: false,
@@ -203,6 +206,7 @@ export default function SongListEditor() {
       chartType: 'standard',
       genre: '',
       levelValue: 10.0,
+      version: 0,
     })
     setShowForm(false)
   }, [newSong, songs, importSongs])

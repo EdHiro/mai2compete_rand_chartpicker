@@ -4,6 +4,7 @@ import { useTournamentStore, type TournamentStage, type StageSong, type Tourname
 import { broadcastSyncEvent, subscribeSyncEvents } from '@/utils/tabSync'
 import { useToast } from '@/components/Toast'
 import { Search, Eye, Send, Disc3, UserPlus, UserMinus, Users, Check, SlidersHorizontal, Ban, Trophy, Shuffle, X, ChevronRight, Command, Database, QrCode, Smartphone, Zap, RotateCcw } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { cn } from '@/lib/utils'
 
 // 分页大小
@@ -138,6 +139,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
   const loaderRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
 
   // 多玩家模式
   const [multiMode, setMultiMode] = useState(false)
@@ -150,23 +152,38 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
     { song: Song; label: string; playerName?: string; playerId?: string }[] | null
   >(null)
 
+  // 终端模式：通过 URL 的 multiplayer=1 进入的移动端选曲界面
+  const [isTerminalMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    return params.get('multiplayer') === '1'
+  })
+
+  // 终端模式下未选择玩家时显示玩家选择器
+  const [showPlayerPicker, setShowPlayerPicker] = useState(false)
+
   // 根据 URL 参数初始化多人模式
   useEffect(() => {
     if (initialMultiMode) {
-      setMultiMode(true);
+      setMultiMode(true)
       // 如果 URL 里带了 player_name，则尝试在 playerSelections 中找到并激活
       if (initialPlayerName && playerSelections.length > 0) {
-        const existing = playerSelections.find(p => p.playerName === initialPlayerName);
+        const existing = playerSelections.find(p => p.playerName === initialPlayerName)
         if (existing) {
-          setActivePlayerId(existing.playerId);
+          setActivePlayerId(existing.playerId)
+          return
         }
       }
-      // 如果还没有任何玩家，至少添加一个占位
-      if (playerSelections.length === 0) {
-        addPlayer(initialPlayerName || '玩家1');
+      // 终端模式下没有匹配玩家时弹出玩家选择器
+      if (isTerminalMode) {
+        setShowPlayerPicker(true)
+      }
+      // 非终端模式下如果还没有任何玩家，添加一个占位
+      else if (playerSelections.length === 0) {
+        addPlayer(initialPlayerName || '玩家1')
       }
     }
-  }, [initialMultiMode, initialPlayerName]);
+  }, [initialMultiMode, initialPlayerName, isTerminalMode, playerSelections, addPlayer, setActivePlayerId, setMultiMode])
 
   // 单人模式选中的谱面列表（最多4张）
   const [singleSelectedSongs, setSingleSelectedSongs] = useState<Song[]>([])
@@ -178,6 +195,12 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
   // 难度快捷筛选
   const [quickDiffFilter, setQuickDiffFilter] = useState<Difficulty | 'ALL'>('ALL')
 
+  // 版本筛选 & 谱师筛选
+  const aliases = useSongStore((state) => state.aliases)
+  const versions = useSongStore((state) => state.versions)
+  const [versionFilter, setVersionFilter] = useState<number | 'ALL'>('ALL')
+  const [designerFilter, setDesignerFilter] = useState('')
+
   // Tournament sync target
   const tournamentCurrentStage = useTournamentStore((state) => state.currentStage)
   const tournamentStages = useTournamentStore((state) => state.stages)
@@ -188,8 +211,8 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
   const [showTournamentSync, setShowTournamentSync] = useState(false)
   const [showQRCode, setShowQRCode] = useState(false)
 
-  // Header 折叠：滚动自动折叠，可手动展开
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false)
+  // Header 折叠：滚动自动折叠，可手动展开；终端模式下默认折叠以留出更多空间给谱面网格
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(isTerminalMode)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -246,27 +269,43 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
     return source
   }, [songs, songPools, activePoolId, excludedPoolIds])
 
-  // 搜索过滤 + 难度快捷筛选 + 拟合定数过滤
+  // 搜索过滤 + 难度快捷筛选 + 拟合定数过滤 + 版本/谱师筛选
   const filteredSongs = useMemo(() => {
     let result = activeSongs
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      result = result.filter(song =>
-        song.name.toLowerCase().includes(query) ||
-        song.author.toLowerCase().includes(query) ||
-        song.genre.toLowerCase().includes(query)
-      )
+      result = result.filter(song => {
+        // 名称、作者、分类匹配
+        if (
+          song.name.toLowerCase().includes(query) ||
+          song.author.toLowerCase().includes(query) ||
+          song.genre.toLowerCase().includes(query)
+        ) return true
+        // 别名匹配
+        const songAliases = aliases[song.songId]
+        if (songAliases && songAliases.some(a => a.toLowerCase().includes(query))) return true
+        return false
+      })
     }
     // 难度快捷筛选
     if (quickDiffFilter !== 'ALL') {
       result = result.filter(song => song.difficulty === quickDiffFilter)
+    }
+    // 版本筛选
+    if (versionFilter !== 'ALL') {
+      result = result.filter(song => song.version === versionFilter)
+    }
+    // 谱师筛选
+    if (designerFilter.trim()) {
+      const q = designerFilter.trim().toLowerCase()
+      result = result.filter(song => song.difficultyAuthor.toLowerCase().includes(q))
     }
     // 拟合定数过滤
     result = result.filter(song =>
       song.levelValue >= minLevelValue && song.levelValue <= maxLevelValue
     )
     return result
-  }, [activeSongs, searchQuery, quickDiffFilter, minLevelValue, maxLevelValue])
+  }, [activeSongs, searchQuery, quickDiffFilter, minLevelValue, maxLevelValue, aliases, versionFilter, designerFilter])
 
   // 分页展示
   const visibleSongs = useMemo(
@@ -351,6 +390,20 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
       })
     }
   }
+
+  // 保持 ref 指向最新的 handleSelectSong，避免键盘监听 useEffect 闭包过期
+  const handleSelectSongRef = useRef(handleSelectSong)
+  handleSelectSongRef.current = handleSelectSong
+
+  // 弹窗 Escape 关闭
+  useEffect(() => {
+    if (!showPlayerPicker) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowPlayerPicker(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showPlayerPicker])
 
   const handleAddPlayer = () => {
     const name = newPlayerName.trim() || `玩家${playerSelections.length + 1}`
@@ -759,6 +812,12 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
   // 多玩家模式下已选谱面数
   const selectedCount = playerSelections.filter(ps => ps.song !== null).length
 
+  // 移动端扫码链接
+  const shareUrl = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    return `${window.location.origin}${window.location.pathname}?selector=1&multiplayer=1`
+  }, [])
+
   // 键盘导航事件监听（在所有 handlers 定义之后）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -783,7 +842,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
         setFocusedIndex(prev => Math.max(prev - columnsCount, 0))
       } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < total) {
         e.preventDefault()
-        handleSelectSong(visibleSongs[focusedIndex])
+        handleSelectSongRef.current(visibleSongs[focusedIndex])
       } else if (e.key === 'Escape') {
         setFocusedIndex(-1)
       }
@@ -802,10 +861,10 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
             <div className="flex items-center gap-3">
               <div>
                 <h1 className="title-gradient text-xl sm:text-2xl drop-shadow-lg animate-enter">
-                  指定谱面
+                  {isTerminalMode ? '选手选曲终端' : '指定谱面'}
                 </h1>
                 <div className="font-rajdhani text-[11px] sm:text-xs tracking-[0.3em] uppercase text-white/40 mt-1">
-                  SELECT YOUR CHARTS · 指定选曲
+                  {isTerminalMode ? 'MOBILE SELECTOR · 移动端选曲' : 'SELECT YOUR CHARTS · 指定选曲'}
                 </div>
               </div>
               {/* 曲库选择器 */}
@@ -834,15 +893,18 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => onSwitchPage?.('home')}
-              className="btn-secondary press-down"
-            >
-              返回抽卡
-            </button>
+            {!isTerminalMode && (
+              <button
+                onClick={() => onSwitchPage?.('home')}
+                className="btn-secondary press-down"
+              >
+                返回抽卡
+              </button>
+            )}
           </div>
 
           {/* 模式切换 */}
+          {!isTerminalMode && (
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <button
               onClick={() => {
@@ -968,12 +1030,13 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
               </button>
             )}
           </div>
+          )}
 
           {/* 可折叠扩展区域 */}
           {!isHeaderCollapsed && (
             <>
               {/* 扫码链接弹窗 */}
-              {showQRCode && multiMode && (
+              {!isTerminalMode && showQRCode && multiMode && (
             <div className="mb-4 p-4 rounded-3xl glass-panel border border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-white font-bold text-sm font-rajdhani flex items-center gap-2">
@@ -989,7 +1052,11 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
               </div>
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0 p-3 rounded-2xl bg-white">
-                  <QrCode size={80} className="text-black" />
+                  {shareUrl ? (
+                    <QRCodeSVG value={shareUrl} size={160} level="M" includeMargin />
+                  ) : (
+                    <QrCode size={80} className="text-black" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white/60 text-xs font-rajdhani mb-2">
@@ -999,20 +1066,11 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                     <input
                       type="text"
                       readOnly
-                      value={
-                        typeof window !== 'undefined'
-                          ? `${window.location.origin}${window.location.pathname}?selector=1&multiplayer=1`
-                          : ''
-                      }
+                      value={shareUrl}
                       className="input-glass flex-1 text-xs font-mono"
                     />
                     <button
-                      onClick={() => {
-                        const url = typeof window !== 'undefined'
-                          ? `${window.location.origin}${window.location.pathname}?selector=1&multiplayer=1`
-                          : ''
-                        navigator.clipboard?.writeText(url)
-                      }}
+                      onClick={() => navigator.clipboard?.writeText(shareUrl)}
                       className="btn-primary text-xs px-3 py-2 press-down"
                     >
                       复制
@@ -1037,7 +1095,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索谱面名称、作者或流派..."
+                placeholder="搜索谱面名称、别名、作者或流派..."
                 className="input-glass pl-10"
               />
             </div>
@@ -1066,6 +1124,43 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
           {/* 筛选面板 */}
           {showFilters && (
             <div className="mb-4 p-4 rounded-3xl glass-panel border border-white/10 space-y-4">
+              {/* 版本筛选 + 谱师筛选 */}
+              <div className="flex flex-wrap items-center gap-3">
+                {versions.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/60 font-rajdhani font-bold text-xs whitespace-nowrap">版本</span>
+                    <select
+                      value={versionFilter}
+                      onChange={(e) => setVersionFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+                      className="input-glass text-xs font-rajdhani py-1.5 px-2 rounded-lg min-w-[120px]"
+                    >
+                      <option value="ALL">全部版本</option>
+                      {versions.map(v => (
+                        <option key={v.version} value={v.version}>{v.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                  <span className="text-white/60 font-rajdhani font-bold text-xs whitespace-nowrap">谱师</span>
+                  <input
+                    type="text"
+                    value={designerFilter}
+                    onChange={(e) => setDesignerFilter(e.target.value)}
+                    placeholder="输入谱师名筛选"
+                    className="input-glass text-xs font-rajdhani py-1.5 px-2 rounded-lg flex-1"
+                  />
+                  {designerFilter && (
+                    <button
+                      onClick={() => setDesignerFilter('')}
+                      className="text-white/40 hover:text-white text-xs"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* 拟合定数范围 */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -1193,25 +1288,27 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                   )
                 })}
 
-                {/* 添加玩家 */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newPlayerName}
-                    onChange={(e) => setNewPlayerName(e.target.value)}
-                    placeholder="玩家名称"
-                    className="input-glass w-24 px-3 py-1.5 text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAddPlayer()
-                    }}
-                  />
-                  <button
-                    onClick={handleAddPlayer}
-                    className="btn-primary px-3 py-1.5 press-down"
-                  >
-                    <UserPlus size={14} />
-                  </button>
-                </div>
+                {/* 添加玩家（仅非终端模式） */}
+                {!isTerminalMode && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newPlayerName}
+                      onChange={(e) => setNewPlayerName(e.target.value)}
+                      placeholder="玩家名称"
+                      className="input-glass w-24 px-3 py-1.5 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddPlayer()
+                      }}
+                    />
+                    <button
+                      onClick={handleAddPlayer}
+                      className="btn-primary px-3 py-1.5 press-down"
+                    >
+                      <UserPlus size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 当前激活玩家提示 - 移动端优化 */}
@@ -1221,7 +1318,15 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                     当前：{playerSelections.find(p => p.playerId === activePlayerId)?.playerName}
                   </span>
                   <span className="text-white/50">· 点击谱面卡片即可分配选曲</span>
-                  <span className="hidden sm:inline text-white/30">· 点击其他玩家切换</span>
+                  {isTerminalMode && (
+                    <button
+                      onClick={() => setShowPlayerPicker(true)}
+                      className="text-cyan-300 hover:text-cyan-200 underline text-[11px]"
+                    >
+                      切换玩家
+                    </button>
+                  )}
+                  {!isTerminalMode && <span className="hidden sm:inline text-white/30">· 点击其他玩家切换</span>}
                 </div>
               )}
 
@@ -1265,96 +1370,98 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={sendTargetStage}
-                      onChange={(e) => {
-                        setSendTargetStage(e.target.value as TournamentStage | '')
-                        setSendTargetGroup('')
-                      }}
-                      className="input-glass px-2 py-1.5 text-xs w-auto"
-                      title="赛事目标阶段"
-                    >
-                      <option value="">自动 ({tournamentCurrentStage || '无'})</option>
-                      <option value="n216">N进16</option>
-                      <option value="16to8">16进8</option>
-                      <option value="8to4">8进4</option>
-                      <option value="semi">半决赛</option>
-                      <option value="final">决赛</option>
-                    </select>
+                  {!isTerminalMode && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <select
+                        value={sendTargetStage}
+                        onChange={(e) => {
+                          setSendTargetStage(e.target.value as TournamentStage | '')
+                          setSendTargetGroup('')
+                        }}
+                        className="input-glass px-2 py-1.5 text-xs w-auto"
+                        title="赛事目标阶段"
+                      >
+                        <option value="">自动 ({tournamentCurrentStage || '无'})</option>
+                        <option value="n216">N进16</option>
+                        <option value="16to8">16进8</option>
+                        <option value="8to4">8进4</option>
+                        <option value="semi">半决赛</option>
+                        <option value="final">决赛</option>
+                      </select>
 
-                    {(() => {
-                      const targetStage = sendTargetStage || tournamentCurrentStage
-                      const groups = targetStage ? tournamentStages[targetStage]?.groups || [] : []
-                      return groups.length > 0 ? (
-                        <select
-                          value={sendTargetGroup}
-                          onChange={(e) => setSendTargetGroup(e.target.value)}
-                          className="input-glass px-2 py-1.5 text-xs w-auto"
-                          title="目标分组"
+                      {(() => {
+                        const targetStage = sendTargetStage || tournamentCurrentStage
+                        const groups = targetStage ? tournamentStages[targetStage]?.groups || [] : []
+                        return groups.length > 0 ? (
+                          <select
+                            value={sendTargetGroup}
+                            onChange={(e) => setSendTargetGroup(e.target.value)}
+                            className="input-glass px-2 py-1.5 text-xs w-auto"
+                            title="目标分组"
+                          >
+                            <option value="">自动 ({groups[0]?.name})</option>
+                            {groups.map((g) => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                          </select>
+                        ) : null
+                      })()}
+
+                      {/* 半决赛/决赛 2+2 流程：先选 2 首自选，再抽卡 2 首，最后生成 */}
+                      {(sendTargetStage || tournamentCurrentStage) &&
+                        ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                        <button
+                          onClick={handleDrawGachaForSemi}
+                          title="抽卡模式抽取 2 首随机谱面"
+                          className={cn(
+                            'btn-secondary text-xs press-down',
+                            gachaSelectedSongs.length >= 2 && 'badge-success cursor-default'
+                          )}
+                          disabled={gachaSelectedSongs.length >= 2}
                         >
-                          <option value="">自动 ({groups[0]?.name})</option>
-                          {groups.map((g) => (
-                            <option key={g.id} value={g.id}>{g.name}</option>
-                          ))}
-                        </select>
-                      ) : null
-                    })()}
+                          <Shuffle size={14} />
+                          <span>{gachaSelectedSongs.length >= 2 ? '随机已抽' : '抽卡x2'}</span>
+                        </button>
+                      )}
 
-                    {/* 半决赛/决赛 2+2 流程：先选 2 首自选，再抽卡 2 首，最后生成 */}
-                    {(sendTargetStage || tournamentCurrentStage) &&
-                      ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                      {/* 半决赛/决赛 2+2 生成（多人模式：2 人各 1 首自选） */}
+                      {selectedCount >= 2 && gachaSelectedSongs.length >= 2 &&
+                        (sendTargetStage || tournamentCurrentStage) &&
+                        ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                        <button
+                          onClick={handleGenerateSemiFinalSongs}
+                          title="生成自选1 + 随机1 + 自选2 + 随机2"
+                          className="btn-primary press-down btn-shimmer"
+                        >
+                          <Shuffle size={14} />
+                          <span>生成 2+2</span>
+                        </button>
+                      )}
+
                       <button
-                        onClick={handleDrawGachaForSemi}
-                        title="抽卡模式抽取 2 首随机谱面"
-                        className={cn(
-                          'btn-secondary text-xs press-down',
-                          gachaSelectedSongs.length >= 2 && 'badge-success cursor-default'
-                        )}
-                        disabled={gachaSelectedSongs.length >= 2}
+                        onClick={handleSendToOBS}
+                        disabled={sentToOBS}
+                        className={sentToOBS ? 'badge-success cursor-default press-down btn-shimmer' : 'btn-primary press-down btn-shimmer'}
                       >
-                        <Shuffle size={14} />
-                        <span>{gachaSelectedSongs.length >= 2 ? '随机已抽' : '抽卡x2'}</span>
+                        <Send size={14} />
+                        {sentToOBS ? '已同步' : '同步到OBS'}
                       </button>
-                    )}
-
-                    {/* 半决赛/决赛 2+2 生成（多人模式：2 人各 1 首自选） */}
-                    {selectedCount >= 2 && gachaSelectedSongs.length >= 2 &&
-                      (sendTargetStage || tournamentCurrentStage) &&
-                      ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                       <button
-                        onClick={handleGenerateSemiFinalSongs}
-                        title="生成自选1 + 随机1 + 自选2 + 随机2"
-                        className="btn-primary press-down btn-shimmer"
+                        onClick={handleSendPlayersToTournament}
+                        className="btn-secondary press-down"
                       >
-                        <Shuffle size={14} />
-                        <span>生成 2+2</span>
+                        <Trophy size={14} />
+                        赛事
                       </button>
-                    )}
-
-                    <button
-                      onClick={handleSendToOBS}
-                      disabled={sentToOBS}
-                      className={sentToOBS ? 'badge-success cursor-default press-down btn-shimmer' : 'btn-primary press-down btn-shimmer'}
-                    >
-                      <Send size={14} />
-                      {sentToOBS ? '已同步' : '同步到OBS'}
-                    </button>
-                    <button
-                      onClick={handleSendPlayersToTournament}
-                      className="btn-secondary press-down"
-                    >
-                      <Trophy size={14} />
-                      赛事
-                    </button>
-                    <button
-                      onClick={handleClearSelections}
-                      className="btn-secondary text-xs px-3 py-2 press-down"
-                    >
-                      <RotateCcw size={12} className="inline mr-1" />
-                      清空
-                    </button>
-                  </div>
+                      <button
+                        onClick={handleClearSelections}
+                        className="btn-secondary text-xs px-3 py-2 press-down"
+                      >
+                        <RotateCcw size={12} className="inline mr-1" />
+                        清空
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1364,7 +1471,77 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 max-w-7xl mx-auto w-full">
+      {/* 终端模式：玩家选择器 */}
+      {isTerminalMode && showPlayerPicker && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="player-picker-title"
+        >
+          <div className="relative w-full max-w-sm glass-panel rounded-3xl border border-white/10 p-6 animate-enter">
+            <h2 id="player-picker-title" className="text-xl font-black text-white text-center mb-2">
+              请选择你的选手名
+            </h2>
+            <p className="text-white/50 text-xs text-center mb-6 font-rajdhani">
+              选择后仅可为该选手指定谱面
+            </p>
+
+            {playerSelections.filter(ps => !ps.playerId.startsWith('__random-')).length === 0 ? (
+              <div className="text-center py-8">
+                <Users size={48} className="mx-auto text-white/20 mb-3" />
+                <p className="text-white/60 text-sm">等待赛事主机同步选手...</p>
+                <p className="text-white/40 text-xs mt-2">主机同步后本页面会自动刷新</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {playerSelections
+                  .filter(ps => !ps.playerId.startsWith('__random-'))
+                  .map((ps, idx) => {
+                    const color = PLAYER_COLORS[idx % PLAYER_COLORS.length]
+                    return (
+                      <button
+                        key={ps.playerId}
+                        onClick={() => {
+                          setActivePlayerId(ps.playerId)
+                          setShowPlayerPicker(false)
+                          // 选择玩家后滚动到谱面网格，避免被长标题遮挡
+                          requestAnimationFrame(() => {
+                            mainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          })
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-150 press-down ${
+                          activePlayerId === ps.playerId
+                            ? `${color.bg} text-white ${color.border} ring-1 ring-inset ring-white/10`
+                            : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className={`w-3 h-3 rounded-full flex-shrink-0 ${activePlayerId === ps.playerId ? 'bg-white' : 'bg-white/30'}`} />
+                        <span className="font-rajdhani font-bold text-base truncate">{ps.playerName}</span>
+                        {ps.song && (
+                          <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/70 truncate max-w-[120px]">
+                            已选: {ps.song.name}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+              </div>
+            )}
+
+            {activePlayerId && (
+              <button
+                onClick={() => setShowPlayerPicker(false)}
+                className="mt-4 w-full btn-secondary press-down"
+              >
+                取消
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <main ref={mainRef} className="flex-1 px-4 py-4 max-w-7xl mx-auto w-full">
         {/* 曲库切换器 已移至 多曲库管理（MultiPoolImport）组件 */}
 
         {/* 难度快捷筛选 + 操作按钮栏 */}

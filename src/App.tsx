@@ -1,17 +1,19 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import Home from "@/pages/Home";
-import OBSDisplay from "@/pages/OBSDisplay";
 import SongSelector from "@/pages/SongSelector";
-import ConvertTool from "@/pages/ConvertTool";
-import OBSTournament from "@/components/OBSTournament";
-import TournamentControl from "@/components/TournamentControl";
-import CheckInPage from "@/pages/CheckInPage";
-import PlayerTerminal from "@/components/PlayerTerminal";
-import CountdownDisplay from "@/pages/CountdownDisplay";
-import RefereePage from "@/pages/RefereePage";
-import BracketPage from "@/pages/BracketPage";
-import UpcomingPage from "@/pages/UpcomingPage";
-import { ToastProvider } from "@/components/Toast";
+import { ToastProvider, useToast } from "@/components/Toast";
+
+// 非首屏页面懒加载，减小主 bundle 体积
+const OBSDisplay = lazy(() => import("@/pages/OBSDisplay"));
+const ConvertTool = lazy(() => import("@/pages/ConvertTool"));
+const OBSTournament = lazy(() => import("@/components/OBSTournament"));
+const TournamentControl = lazy(() => import("@/components/TournamentControl"));
+const CheckInPage = lazy(() => import("@/pages/CheckInPage"));
+const PlayerTerminal = lazy(() => import("@/components/PlayerTerminal"));
+const CountdownDisplay = lazy(() => import("@/pages/CountdownDisplay"));
+const RefereePage = lazy(() => import("@/pages/RefereePage"));
+const BracketPage = lazy(() => import("@/pages/BracketPage"));
+const UpcomingPage = lazy(() => import("@/pages/UpcomingPage"));
 
 function getPageFromPath(): 'home' | 'obs' | 'selector' | 'convert' | 'tournament' | 'obsTournament' | 'checkin' | 'player' | 'countdown' | 'referee' | 'bracket' | 'upcoming' {
   const path = window.location.pathname;
@@ -52,6 +54,31 @@ function getInitialSelectorState(): { multiMode: boolean; playerName: string | n
   };
 }
 
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-10 h-10 border-2 border-white/20 border-t-violet-400 rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function OfflineDetector() {
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    const onOffline = () => showToast('网络已断开，部分功能不可用', 'error');
+    const onOnline = () => showToast('网络已恢复', 'success');
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [showToast]);
+
+  return null;
+}
+
 export default function App() {
   const [page, setPage] = useState<'home' | 'obs' | 'selector' | 'convert' | 'tournament' | 'obsTournament' | 'checkin' | 'player' | 'countdown' | 'referee' | 'bracket' | 'upcoming'>(getPageFromPath);
   const initialSelectorState = getInitialSelectorState();
@@ -72,6 +99,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <OfflineDetector />
       <div style={{ display: page === 'home' ? 'block' : 'none' }}>
         <Home onSwitchPage={handleSwitchPage} />
       </div>
@@ -82,16 +110,18 @@ export default function App() {
           initialPlayerName={initialSelectorState.playerName}
         />
       </div>
-      {page === 'tournament' && <TournamentControl />}
-      {page === 'obs' && <OBSDisplay />}
-      {page === 'obsTournament' && <OBSTournament />}
-      {page === 'convert' && <ConvertTool />}
-      {page === 'countdown' && <CountdownDisplay />}
-      {page === 'checkin' && <CheckInPage />}
-      {page === 'player' && <PlayerTerminal />}
-      {page === 'referee' && <RefereePage />}
-      {page === 'bracket' && <BracketPage />}
-      {page === 'upcoming' && <UpcomingPage />}
+      <Suspense fallback={<PageLoader />}>
+        {page === 'tournament' && <TournamentControl />}
+        {page === 'obs' && <OBSDisplay />}
+        {page === 'obsTournament' && <OBSTournament />}
+        {page === 'convert' && <ConvertTool />}
+        {page === 'countdown' && <CountdownDisplay />}
+        {page === 'checkin' && <CheckInPage />}
+        {page === 'player' && <PlayerTerminal />}
+        {page === 'referee' && <RefereePage />}
+        {page === 'bracket' && <BracketPage />}
+        {page === 'upcoming' && <UpcomingPage />}
+      </Suspense>
     </ToastProvider>
   );
 }

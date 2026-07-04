@@ -19,10 +19,19 @@ const DIFFICULTY_CODES: Record<Difficulty, string> = {
 const IMAGE_CACHE = (() => {
   const cache: Record<string, string> = {}
   const difficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']
+  const chartTypes: ('dx' | 'standard')[] = ['dx', 'standard']
+  const chartTypeSuffix: Record<'dx' | 'standard', string> = { dx: 'DX', standard: 'STD' }
 
   for (const diff of difficulties) {
     const code = DIFFICULTY_CODES[diff]
-    cache[`bg-${diff}`] = `/levbg/Sprite/UI_TST_MBase_${code}.png`
+    // UTAGE 没有 STD/DX 之分，沿用单一背景
+    if (diff === 'UTAGE') {
+      cache[`bg-${diff}`] = `/levbg/Sprite/UI_TST_MBase_${code}.png`
+    } else {
+      for (const ct of chartTypes) {
+        cache[`bg-${diff}-${ct}`] = `/levbg/Sprite/UI_TST_MBase_${code}_${chartTypeSuffix[ct]}.png`
+      }
+    }
     cache[`lv-${diff}`] = `/levbg/Sprite/UI_TST_MBase_LV_${code}.png`
     cache[`icon-${diff}`] = `/levbg/Sprite/UI_CMN_MusicLevel_${code}_level.png`
     cache[`plus-${diff}`] = code === 'MST_Re'
@@ -83,10 +92,12 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
   const { chartTypeText, chartTypeColor, cardBg, lvBg, levelIcon } = useMemo(() => {
     const isDx = song.chartType === 'dx'
     const isUtage = song.difficulty === 'UTAGE'
+    // UTAGE 无 STD/DX 区分，缓存键不带 chartType 后缀
+    const bgKey = isUtage ? `bg-${song.difficulty}` : `bg-${song.difficulty}-${song.chartType}`
     return {
       chartTypeText: isUtage ? 'UTAGE谱面' : isDx ? 'DX谱面' : '标准谱面',
       chartTypeColor: isDx ? 'text-red' : 'text-white',
-      cardBg: IMAGE_CACHE[`bg-${song.difficulty}`],
+      cardBg: IMAGE_CACHE[bgKey],
       lvBg: IMAGE_CACHE[`lv-${song.difficulty}`],
       levelIcon: IMAGE_CACHE[`icon-${song.difficulty}`],
     }
@@ -139,10 +150,10 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       />
 
       {/* Top ChartType Label */}
-      <div className="absolute top-4 left-1/2  -translate-x-1/2 w-[220px] pointer-events-none">
+      <div className="absolute top-9 left-1/2  -translate-x-1/2 w-[220px] pointer-events-none">
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-sm font-black uppercase tracking-[0.26em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ${chartTypeColor}`}>
-            {chartTypeText}
+          <span className={`text-sm font-black tracking-[0.26em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ${chartTypeColor}`}>
+
           </span>
         </div>
       </div>
@@ -151,13 +162,13 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         <img
           src={song.cover}
           alt={song.name}
-          className="w-[253px] h-[270px]  object-cover"
+          className="w-[246px] h-[247px]  object-cover"
           loading="lazy"
         />
       </div>
 
       {/* Title strip */}
-      <div className="absolute top-[345px] left-[14px] right-[14px] z-25 pointer-events-none">
+      <div className="absolute top-[365px] left-[14px] right-[14px] z-25 pointer-events-none">
         <div className="card-title-strip">
           <div ref={titleContainerRef} className="w-full overflow-hidden h-[28px]">
             <div 
@@ -166,14 +177,14 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
             >
               <p 
                 ref={titleTextRef} 
-                className={`text-white text-base font-black uppercase tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap ${shouldScroll ? 'marquee-text' : ''}`}
+                className={`text-white text-base font-black tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap ${shouldScroll ? 'marquee-text' : ''}`}
               >
                 {song.name}
               </p>
 
               {shouldScroll && (
                 <p 
-                  className="text-white text-base font-black uppercase tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap marquee-text" 
+                  className="text-white text-base font-black tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap marquee-text"
                   aria-hidden="true"
                 >
                   {song.name}
@@ -185,7 +196,7 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       </div>
 
       {/* Author line under title strip */}
-      <div className="absolute top-[397px] left-[18px] right-[18px] z-25 text-center pointer-events-none">
+      <div className="absolute top-[410px] left-[18px] right-[18px] z-25 text-center pointer-events-none">
         <div ref={authorContainerRef} className="w-full overflow-hidden h-[22px]">
           <div
             className={authorShouldScroll ? 'animate-marquee' : 'flex justify-center'}
@@ -211,14 +222,14 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       </div>
 
       {/* Left purple difficulty label */}
-      <div className="absolute top-[426px] left-[5px] pointer-events-none">
+      <div className="absolute top-[435px] left-[1px] pointer-events-none">
         <div className="flex items-center justify-center w-[300px] h-[28px] text-black rounded-[14px]">
               <p>Suining maimai Championship THE 1 ST</p>
         </div>
       </div>
 
       {/* Right floating LV pill using sprites for numbers */}
-      <div className="absolute top-[253px] right-[3px] z-30 pointer-events-none">
+      <div className="absolute top-[270px] right-[3px] z-30 pointer-events-none">
         <img
           src={lvBg}
           alt="LV Background"
@@ -261,14 +272,14 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       </div>
 
       {/* Bottom Info */}
-      <div className="absolute bottom-4 left-[18px] right-[18px] z-20">
+      <div className="absolute bottom-2 left-[18px] right-[18px] z-20">
         <div className="relative flex items-center justify-between gap-4">
           <div className="text-left">
             <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-slate-500">Notes Designer</p>
             <p className="mt-1 text-sm font-bold text-slate-900">{song.difficultyAuthor}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-slate-500">BPM</p>
+            <p className="text-[10px] font-bold tracking-[0.32em] text-slate-500">BPM</p>
             <p className="mt-1 text-sm font-bold text-slate-900">{song.bpm}</p>
           </div>
         </div>

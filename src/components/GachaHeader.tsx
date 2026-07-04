@@ -27,7 +27,7 @@ const difficultyConfig = [
   { value: 'ADVANCED' as const, label: 'ADVANCED', gradient: 'from-yellow-500 to-amber-600', border: 'border-yellow-400/50', shadow: 'shadow-yellow-500/25', text: 'text-yellow-200' },
   { value: 'EXPERT' as const, label: 'EXPERT', gradient: 'from-pink-500 to-rose-600', border: 'border-pink-400/50', shadow: 'shadow-pink-500/25', text: 'text-pink-200' },
   { value: 'MASTER' as const, label: 'MASTER', gradient: 'from-purple-500 to-purple-700', border: 'border-purple-400/50', shadow: 'shadow-purple-500/25', text: 'text-purple-200' },
-  { value: 'Re:MASTER' as const, label: 'Re:MASTER', gradient: 'from-amber-400 to-orange-500', border: 'border-amber-400/50', shadow: 'shadow-amber-500/25', text: 'text-amber-200' },
+  { value: 'Re:MASTER' as const, label: 'Re:MASTER', gradient: 'from-purple-400 to-violet-500', border: 'border-purple-400/50', shadow: 'shadow-purple-500/25', text: 'text-purple-200' },
   { value: 'UTAGE' as const, label: 'UTAGE', gradient: 'from-cyan-500 to-blue-600', border: 'border-cyan-400/50', shadow: 'shadow-cyan-500/25', text: 'text-cyan-200' },
 ]
 
@@ -62,9 +62,12 @@ export default function GachaHeader() {
     songPools, drawMode, setDrawMode, selectedPools,
     chartTypeFilter, toggleChartTypeFilter,
     genreFilter, setGenreFilter,
+    versionFilter, setVersionFilter,
     activeFilters, toggleFilter,
     multiDrawMode,
   } = useSongStore()
+
+  const versions = useSongStore((s) => s.versions)
 
   const [shaking, setShaking] = useState(false)
   const [collapsed, setCollapsed] = useState(true)
@@ -100,10 +103,11 @@ export default function GachaHeader() {
       const songValue = parseLevelValue(song.level, song.isPlus)
       if (songValue < minValue || songValue > maxValue) continue
       if (includePlusOnly && !song.isPlus) continue
+      if (versionFilter !== 'ALL' && song.version !== versionFilter) continue
       count++
     }
     return count
-  }, [songs, activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly])
+  }, [songs, activeFilters, chartTypeFilter, genreFilter, minLevel, maxLevel, includePlusOnly, versionFilter])
 
   const handleDraw = useCallback(() => {
     if (filteredCount === 0) return
@@ -135,6 +139,7 @@ export default function GachaHeader() {
     setIncludePlusOnly(false)
     resetLevelFilter()
     setGenreFilter('')
+    setVersionFilter('ALL')
   }
 
   const handlePresetRange = (min: string, max: string) => {
@@ -150,8 +155,9 @@ export default function GachaHeader() {
     if (minLevel !== '1' || maxLevel !== '15') count++
     if (activeFilters.size < 6) count++
     if (chartTypeFilter.size < 2) count++
+    if (versionFilter !== 'ALL') count++
     return count
-  }, [genreFilter, includePlusOnly, minLevel, maxLevel, activeFilters, chartTypeFilter])
+  }, [genreFilter, includePlusOnly, minLevel, maxLevel, activeFilters, chartTypeFilter, versionFilter])
 
   const toggleCollapsed = () => setCollapsed((c) => !c)
   const expand = () => setCollapsed(false)
@@ -283,6 +289,9 @@ export default function GachaHeader() {
                 {genreFilter && (
                   <span className="badge-warning whitespace-nowrap">流派: {genreFilter}</span>
                 )}
+                {versionFilter !== 'ALL' && (
+                  <span className="badge-warning whitespace-nowrap">版本: {versions.find(v => v.version === versionFilter)?.title ?? versionFilter}</span>
+                )}
                 {(minLevel !== '1' || maxLevel !== '15') && (
                   <span className="badge-warning whitespace-nowrap">等级: {formatLevelRange(minLevel, maxLevel)}</span>
                 )}
@@ -372,6 +381,38 @@ export default function GachaHeader() {
                         )}
                       >
                         {genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 版本 */}
+                <div className="md:col-span-2">
+                  <SectionLabel>版本</SectionLabel>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto scrollbar-thin pr-1">
+                    <button
+                      onClick={() => setVersionFilter('ALL')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs border transition-all duration-200 press-down',
+                        versionFilter === 'ALL'
+                          ? 'text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border-indigo-400/50 shadow-lg shadow-indigo-500/25'
+                          : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
+                      )}
+                    >
+                      全部
+                    </button>
+                    {versions.map((v) => (
+                      <button
+                        key={v.version}
+                        onClick={() => setVersionFilter(v.version)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs border transition-all duration-200 press-down',
+                          versionFilter === v.version
+                            ? 'text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border-indigo-400/50 shadow-lg shadow-indigo-500/25'
+                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
+                        )}
+                      >
+                        {v.title}
                       </button>
                     ))}
                   </div>
@@ -509,6 +550,7 @@ export default function GachaHeader() {
                   <span className="chip">等级 {formatLevelRange(minLevel, maxLevel)}</span>
                   {includePlusOnly && <span className="chip">仅 + 难度</span>}
                   {genreFilter && <span className="chip">流派: {genreFilter}</span>}
+                  {versionFilter !== 'ALL' && <span className="chip">版本: {versions.find(v => v.version === versionFilter)?.title ?? versionFilter}</span>}
                   <span className="chip text-cyan-200">
                     候选 <span className="text-white font-bold">{filteredCount}</span> 张
                   </span>
