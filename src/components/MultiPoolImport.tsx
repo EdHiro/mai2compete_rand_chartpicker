@@ -459,6 +459,7 @@ function validateAndParseSongs(data: unknown): ValidationResult {
 
     songs.push({
       id: obj.id as string,
+      songId: typeof obj.songId === 'number' ? obj.songId : 0,
       name: obj.name as string,
       difficulty: obj.difficulty as Difficulty,
       level: obj.level as number,
@@ -470,6 +471,7 @@ function validateAndParseSongs(data: unknown): ValidationResult {
       chartType: obj.chartType as ChartType,
       genre: typeof obj.genre === 'string' ? obj.genre : '',
       levelValue: typeof obj.levelValue === 'number' ? obj.levelValue : (obj.level as number) + ((obj.isPlus as boolean) ? 0.5 : 0),
+      version: typeof obj.version === 'number' ? obj.version : 0,
     })
   }
 

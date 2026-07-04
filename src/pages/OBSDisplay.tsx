@@ -20,6 +20,10 @@ interface DrawCardProps {
 
 const getDifficultyCode = (difficulty: Difficulty): string => {
   switch (difficulty) {
+    case 'BASIC':
+      return 'BSC'
+    case 'ADVANCED':
+      return 'ADV'
     case 'EXPERT':
       return 'EXP'
     case 'MASTER':
@@ -28,19 +32,26 @@ const getDifficultyCode = (difficulty: Difficulty): string => {
       return 'MST_Re'
     case 'UTAGE':
       return 'UTG'
+    default:
+      return 'EXP'
   }
 }
 
-const getCardBgImage = (difficulty: Difficulty): string => {
+const getCardBgImage = (difficulty: Difficulty, chartType: 'dx' | 'standard'): string => {
   const code = getDifficultyCode(difficulty)
-  return `/levbg/Sprite/UI_TST_MBase_${code}.png`
+  // UTAGE 没有 STD/DX 之分，沿用单一背景
+  if (difficulty === 'UTAGE') {
+    return `/levbg/Sprite/UI_TST_MBase_${code}.png`
+  }
+  const suffix = chartType === 'dx' ? 'DX' : 'STD'
+  return `/levbg/Sprite/UI_TST_MBase_${code}_${suffix}.png`
 }
 
 const ENTRANCE_BG = '/levbg/Sprite/UI_TST_MBase_DMY.png'
 
 const DrawCard = function ({ song, index, showFront, animationState }: DrawCardProps) {
   const isExiting = animationState === 'exit'
-  const bgForBack = isExiting ? getCardBgImage(song.difficulty) : ENTRANCE_BG
+  const bgForBack = isExiting ? getCardBgImage(song.difficulty, song.chartType) : ENTRANCE_BG
   // 统一底部标签：自选曲显示玩家名，随机曲显示 随机1/随机2
   const displayName = song._playerName || song._label
 

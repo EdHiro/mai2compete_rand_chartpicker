@@ -18,6 +18,10 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    host: '0.0.0.0', // 允许局域网访问
+    port: 5173, // 可选：指定端口号
+  },
   plugins: [
     react({
       babel: {
@@ -25,10 +29,6 @@ export default defineConfig({
           'react-dev-locator',
         ],
       },
-    	server: {
-	      host: '0.0.0.0', // 允许局域网访问
-	      port: 5173 // 可选：指定端口号
-	    }
     }),
     traeBadgePlugin({
       variant: 'dark',
@@ -38,7 +38,7 @@ export default defineConfig({
       clickUrl: 'https://www.trae.ai/solo?showJoin=1',
       autoTheme: true,
       autoThemeTarget: '#root'
-    }), 
+    }),
     tsconfigPaths()
   ],
 })

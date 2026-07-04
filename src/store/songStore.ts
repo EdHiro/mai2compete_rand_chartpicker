@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import { broadcastSyncEvent } from '@/utils/tabSync'
-import { fetchMusicData } from '@/api/divingFish'
+import { fetchMusicData, fetchAliases } from '@/api/divingFish'
 
 export type Difficulty = 'BASIC' | 'ADVANCED' | 'EXPERT' | 'MASTER' | 'Re:MASTER' | 'UTAGE'
 export type ChartType = 'dx' | 'standard'
 
 export interface Song {
   id: string
+  songId: number // 原始曲目 ID（lxns API），用于别名匹配
   name: string
   difficulty: Difficulty
   level: number
@@ -18,6 +19,13 @@ export interface Song {
   chartType: ChartType
   genre: string
   levelValue: number // 拟合定数 (level_value from lxns API)
+  version: number // 谱面首次出现版本（如 24000）
+}
+
+// 游戏版本信息
+export interface GameVersion {
+  version: number // 版本号（如 10000, 25000）
+  title: string
 }
 
 export interface SongPool {
@@ -93,7 +101,7 @@ function persistSettings(state: Pick<SongStore, 'selectedPools' | 'multiDrawMode
 }
 
 // 从 localStorage 加载持久化曲库
-function loadPersistedPools(): { songs: Song[]; songPools: SongPool[] } {
+function loadPersistedPools(): { songs: Song[]; songPools: SongPool[]; versions: GameVersion[] } {
   try {
     const saved = localStorage.getItem('maimai-draw-pools')
     if (saved) {
@@ -101,12 +109,13 @@ function loadPersistedPools(): { songs: Song[]; songPools: SongPool[] } {
       return {
         songs: Array.isArray(parsed.songs) ? parsed.songs : [],
         songPools: Array.isArray(parsed.songPools) ? parsed.songPools : [],
+        versions: Array.isArray(parsed.versions) ? parsed.versions : [],
       }
     }
   } catch {
     // ignore
   }
-  return { songs: [], songPools: [] }
+  return { songs: [], songPools: [], versions: [] }
 }
 
 // 保存曲库到 localStorage
@@ -144,6 +153,8 @@ interface SongStore {
   includePlusOnly: boolean
   chartTypeFilter: Set<ChartType>
   genreFilter: string
+  versionFilter: number | 'ALL'
+  designerFilter: string
   drawCount: number
   isDrawing: boolean
   drawKey: number
@@ -173,6 +184,8 @@ interface SongStore {
   getFilteredSongs: (activeFilters: Set<Difficulty>, includePlusOnly: boolean, chartTypeFilter: Set<ChartType>, genreFilter: string, poolSongs?: Song[]) => Song[]
   toggleChartTypeFilter: (chartType: ChartType) => void
   setGenreFilter: (genre: string) => void
+  setVersionFilter: (version: number | 'ALL') => void
+  setDesignerFilter: (designer: string) => void
   // 获取抽取预览
   getDrawPreview: () => { poolId: string; poolName: string; count: number; available: number }[]
   // 获取抽取历史（用于去重）
@@ -191,6 +204,12 @@ interface SongStore {
   // 排除曲库
   excludedPoolIds: string[]
   toggleExcludedPool: (poolId: string) => void
+  // 曲目别名（songId -> 别名列表）
+  aliases: Record<number, string[]>
+  setAliases: (aliases: Record<number, string[]>) => void
+  // 游戏版本列表
+  versions: GameVersion[]
+  setVersions: (versions: GameVersion[]) => void
 }
 
 const mockSongs: Song[] = [
@@ -216,6 +235,8 @@ export const useSongStore = create<SongStore>((set, get) => ({
   includePlusOnly: false,
   chartTypeFilter: new Set(['dx', 'standard']),
   genreFilter: '',
+  versionFilter: 'ALL' as number | 'ALL',
+  designerFilter: '',
   drawCount: 1,
   isDrawing: false,
   drawKey: 0,
@@ -230,6 +251,26 @@ export const useSongStore = create<SongStore>((set, get) => ({
   maxLevelValue: 15.5,
   // 排除曲库
   excludedPoolIds: [],
+
+  // 曲目别名
+  aliases: {},
+  setAliases: (aliases) => set({ aliases }),
+
+  // 游戏版本列表
+  versions: persistedPools.versions,
+  setVersions: (versions) => {
+    set({ versions })
+    try {
+      const saved = localStorage.getItem('maimai-draw-pools')
+      const parsed = saved ? JSON.parse(saved) : {}
+      localStorage.setItem('maimai-draw-pools', JSON.stringify({
+        ...parsed,
+        versions,
+      }))
+    } catch {
+      // ignore
+    }
+  },
 
   // 获取当前激活曲库的歌曲
   getActiveSongs: () => {
@@ -247,10 +288,11 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   // 获取过滤后的歌曲
   getFilteredSongs: (af: Set<Difficulty>, ipOnly: boolean, ctf: Set<ChartType>, gf: string, poolSongs?: Song[]) => {
-    const { minLevel, maxLevel } = get()
+    const { minLevel, maxLevel, versionFilter, designerFilter } = get()
     const source = poolSongs || get().getActiveSongs()
     const minValue = parseInputValue(minLevel)
     const maxValue = parseInputValue(maxLevel)
+    const designerQ = designerFilter.trim().toLowerCase()
 
     const result: Song[] = []
     for (let i = 0; i < source.length; i++) {
@@ -261,6 +303,8 @@ export const useSongStore = create<SongStore>((set, get) => ({
       const songValue = parseSongLevel(song)
       if (songValue < minValue || songValue > maxValue) continue
       if (ipOnly && !song.isPlus) continue
+      if (versionFilter !== 'ALL' && song.version !== versionFilter) continue
+      if (designerQ && song.difficultyAuthor.toLowerCase() !== designerQ) continue
       result.push(song)
     }
     return result
@@ -489,6 +533,14 @@ export const useSongStore = create<SongStore>((set, get) => ({
     set({ genreFilter: genre })
   },
 
+  setVersionFilter: (version) => {
+    set({ versionFilter: version })
+  },
+
+  setDesignerFilter: (designer) => {
+    set({ designerFilter: designer })
+  },
+
   setLevelRange: (min, max) => {
     set({ minLevel: min, maxLevel: max })
   },
@@ -506,6 +558,8 @@ export const useSongStore = create<SongStore>((set, get) => ({
       activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']),
       chartTypeFilter: new Set(['dx', 'standard']),
       genreFilter: '',
+      versionFilter: 'ALL' as number | 'ALL',
+      designerFilter: '',
       minLevel: '1',
       maxLevel: '15',
       includePlusOnly: false,
@@ -546,11 +600,21 @@ export const useSongStore = create<SongStore>((set, get) => ({
 
   importSongsFromAPI: async () => {
     try {
-      const songs = await fetchMusicData()
+      const { songs, versions } = await fetchMusicData()
       if (songs.length === 0) {
         return { success: false, count: 0, error: '未获取到歌曲数据' }
       }
       get().importSongs(songs)
+      get().setVersions(versions)
+
+      // 拉取别名列表（失败不阻塞主流程）
+      try {
+        const aliases = await fetchAliases()
+        get().setAliases(aliases)
+      } catch {
+        // 别名加载失败不中断导入
+      }
+
       return { success: true, count: songs.length }
     } catch (err) {
       const message = err instanceof Error ? err.message : '获取歌曲数据失败'
@@ -569,7 +633,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
       return 'main'
     }
     const newPool: SongPool = {
-      id: `pool-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `pool-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       name,
       songs
     }
@@ -667,7 +731,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
   addPlayer: (name) => {
     const { playerSelections } = get()
     const newPlayer: PlayerSelection = {
-      playerId: `player-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      playerId: `player-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       playerName: name,
       song: null,
     }

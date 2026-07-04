@@ -4,6 +4,13 @@ import { Upload, Download, ArrowRightLeft, FileJson, Sparkles, AlertTriangle, Mu
 
 // 本文件实现前端转换工具：支持上传 JSON、粘贴、转换并下载
 
+// 宽松的输入类型，兼容多种 JSON 格式
+type RawItem = Record<string, unknown> & {
+  charts?: RawItem[]
+  levels?: Record<string, unknown>
+  基础信息?: Record<string, unknown>
+}
+
 function parseLevel(levelStr: string | number | undefined) {
   if (!levelStr && levelStr !== 0) return { level: 1, isPlus: false }
   const s = String(levelStr).trim()
@@ -12,14 +19,14 @@ function parseLevel(levelStr: string | number | undefined) {
   return { level: Number.isFinite(num) ? num : 1, isPlus }
 }
 
-function convertType(type: any) {
+function convertType(type: unknown) {
   if (!type) return 'standard'
   const t = String(type).toLowerCase()
   if (t === 'dx') return 'dx'
   return 'standard'
 }
 
-function mapDifficultyName(name: any) {
+function mapDifficultyName(name: unknown) {
   if (!name) return null
   const n = String(name).toLowerCase()
   if (n.includes('expert') || n.includes('ex')) return 'EXPERT'
@@ -30,24 +37,26 @@ function mapDifficultyName(name: any) {
   return null
 }
 
-function normalizeCover(c: any) {
+function normalizeCover(c: unknown) {
   if (!c) return ''
   return String(c).replace('public\\', 'public/')
 }
 
-function normalizeItem(src: any) {
-  const levelParse = parseLevel(src.level || src.Level || src.levelStr || '')
+function normalizeItem(src: RawItem) {
+  const levelParse = parseLevel((src.level || src.Level || src.levelStr || '') as string | number | undefined)
   return {
     id: src.id ? String(src.id) : undefined,
-    name: src.name || src.title || src.song || '',
-    difficulty: mapDifficultyName(src.difficulty) || src.difficulty || 'EXPERT',
+    songId: typeof src.songId === 'number' ? src.songId : 0,
+    name: (src.name || src.title || src.song || '') as string,
+    difficulty: mapDifficultyName(src.difficulty) || (src.difficulty as string) || 'EXPERT',
     level: Number.isFinite(Number(levelParse.level)) ? Number(levelParse.level) : 1,
     isPlus: !!levelParse.isPlus || !!src.isPlus,
     cover: normalizeCover(src.cover || src.image || src.image_url || ''),
-    author: src.author || src.artist || '',
-    difficultyAuthor: src.difficultyAuthor || src.chartAuthor || '',
+    author: (src.author || src.artist || '') as string,
+    difficultyAuthor: (src.difficultyAuthor || src.chartAuthor || '') as string,
     bpm: Number(src.bpm) || 0,
     chartType: convertType(src.chartType || src.type || src.mode),
+    version: typeof src.version === 'number' ? src.version : 0,
   } as Song
 }
 
@@ -84,15 +93,15 @@ export default function ConvertTool() {
   const handleConvert = useCallback(() => {
     setError(null)
     try {
-      let data: any = JSON.parse(inputText)
+      let data: unknown = JSON.parse(inputText)
       if (!Array.isArray(data)) {
-        if (data && typeof data === 'object' && Array.isArray(data.songs)) data = data.songs
+        if (data && typeof data === 'object' && Array.isArray((data as Record<string, unknown>).songs)) data = (data as Record<string, unknown[]>).songs
         else if (data && typeof data === 'object') data = Object.values(data).flat().filter(Boolean)
       }
       if (!Array.isArray(data)) throw new Error('输入 JSON 必须为数组或包含 songs 数组')
 
       const out: Song[] = []
-      for (const item of data) {
+      for (const item of data as RawItem[]) {
         if (!item) continue
         if (item.name && item.difficulty && typeof item.level !== 'undefined') {
           out.push(normalizeItem(item))
@@ -101,7 +110,7 @@ export default function ConvertTool() {
         // 支持 maidata.json（title, lev_bas, lev_adv, lev_exp, dx_lev_exp, image_file）
         if (item.title && (item.lev_exp || item.dx_lev_exp || item.lev_mas || item.lev_adv || item.lev_bas)) {
           const cover = item.image_file ? `./public/covers/cover/${item.image_file}` : (item.cover || '')
-          const mapping: any[] = [
+          const mapping: { key: string; difficulty: string; chartType: 'dx' | 'standard' }[] = [
             { key: 'dx_lev_exp', difficulty: 'EXPERT', chartType: 'dx' },
             { key: 'dx_lev_mas', difficulty: 'MASTER', chartType: 'dx' },
             { key: 'dx_lev_adv', difficulty: 'ADVANCED', chartType: 'dx' },
@@ -128,21 +137,21 @@ export default function ConvertTool() {
               bpm: item.bpm || 0,
               chartType: m.chartType,
             }
-            out.push(normalizeItem(entry))
+            out.push(normalizeItem(entry as RawItem))
           }
           continue
         }
         if (Array.isArray(item.charts) && item.charts.length) {
           for (const chart of item.charts) {
-            const merged = Object.assign({}, item, chart)
+            const merged = Object.assign({}, item, chart) as RawItem
             out.push(normalizeItem(merged))
           }
           continue
         }
         if (item.基础信息) {
-          const base = item.基础信息
-          const levels = base.等级 || []
-          const mapping: any = {2: 'EXPERT', 3: 'MASTER', 4: 'Re:MASTER'}
+          const base = item.基础信息 as Record<string, unknown>
+          const levels = (base.等级 || []) as unknown[]
+          const mapping: Record<string, string> = {2: 'EXPERT', 3: 'MASTER', 4: 'Re:MASTER'}
           for (const idxStr of Object.keys(mapping)) {
             const idx = Number(idxStr)
             const lv = levels[idx]
@@ -159,7 +168,7 @@ export default function ConvertTool() {
               bpm: base.bpm || 0,
               chartType: convertType(base.type),
             }
-            out.push(normalizeItem(entry))
+            out.push(normalizeItem(entry as RawItem))
           }
           continue
         }
@@ -172,7 +181,7 @@ export default function ConvertTool() {
               difficulty,
               level: levelInfo.level,
               isPlus: levelInfo.isPlus,
-            })
+            }) as RawItem
             out.push(normalizeItem(entry))
           }
           continue
@@ -181,7 +190,7 @@ export default function ConvertTool() {
           const fallback = {
             name: item.name || item.title,
             difficulty: item.difficulty || 'EXPERT',
-            level: item.level || parseLevel(item.levelStr || '').level || 1,
+            level: item.level || parseLevel(item.levelStr as string || '').level || 1,
             isPlus: !!item.isPlus,
             cover: item.cover || item.image || '',
             author: item.author || item.artist || '',
@@ -189,7 +198,7 @@ export default function ConvertTool() {
             bpm: item.bpm || 0,
             chartType: item.chartType || convertType(item.type),
           }
-          out.push(normalizeItem(fallback))
+          out.push(normalizeItem(fallback as RawItem))
           continue
         }
         // skip unknown
@@ -201,8 +210,9 @@ export default function ConvertTool() {
       }
 
       setItems(out)
-    } catch (err: any) {
-      setError(err.message || String(err))
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message)
     }
   }, [inputText])
 

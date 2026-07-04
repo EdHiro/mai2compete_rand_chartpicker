@@ -72,7 +72,15 @@ body {
   }
 
   select:focus {
-    outline: none;
+    outline: 2px solid rgba(167, 139, 250, 0.55);
+    outline-offset: 2px;
+  }
+
+  /* 键盘焦点指示（仅键盘导航时显示，不影响鼠标点击） */
+  :focus-visible {
+    outline: 2px solid rgba(167, 139, 250, 0.7);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   button {
@@ -577,12 +585,12 @@ body {
 /* Reusable card components */
 @layer components {
   .card-cover-window {
-    @apply absolute top-[25px] left-[23px] right-[14px] z-10 overflow-hidden;
+    @apply absolute top-[69px] left-[27.5px] right-[14px] z-10 overflow-hidden;
   }
 
   /* 👇 优化：增加 overflow-hidden 和 whitespace-nowrap 确保跑马灯效果不溢出、不换行 */
   .card-title-strip {
-    @apply rounded-[10px] py-3 px-4 flex flex-col items-center justify-center text-center overflow-hidden;
+    @apply rounded-[10px] py-1.5 px-4 flex flex-col items-center justify-center text-center overflow-hidden;
   }
 
   /* 👇 新增：标题文本强制不换行 */
@@ -1298,3 +1306,42 @@ body {
 .card-grid > *:nth-child(10) { animation-delay: 450ms; }
 .card-grid > *:nth-child(11) { animation-delay: 500ms; }
 .card-grid > *:nth-child(12) { animation-delay: 550ms; }
+
+/* ===== 减弱动画偏好适配 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== Bracket 页：横向滚动渐隐边缘 + 自定义滚动条 ===== */
+.bracket-scroll {
+  /* 仅在右侧渐隐，提示可继续横向滚动 */
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent 100%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
+}
+
+.bracket-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.bracket-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.bracket-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, rgba(34, 211, 238, 0.4), rgba(139, 92, 246, 0.5));
+  border-radius: 4px;
+}
+
+.bracket-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, rgba(34, 211, 238, 0.7), rgba(139, 92, 246, 0.8));
+}

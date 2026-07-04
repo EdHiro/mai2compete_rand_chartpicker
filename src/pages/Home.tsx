@@ -4,22 +4,22 @@ import GachaResults from '@/components/GachaResults'
 import SongList from '@/components/SongList'
 import JsonImport from '@/components/JsonImport'
 import SongPoolBuilder from '@/components/SongPoolBuilder'
-import TournamentControl from '@/components/TournamentControl'
 import { useSongStore } from '@/store/songStore'
 import { Music, List, Disc3, FolderPlus, MousePointerClick, Trophy, Gavel, GitBranch, MonitorPlay } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type TabType = 'gacha' | 'editor' | 'poolBuilder' | 'tournament'
 
-// 懒加载编辑器组件，仅在需要时加载
+// 懒加载重型组件，仅在切换到对应 Tab 时加载
 const SongListEditor = lazy(() => import('@/components/SongListEditor'))
+const TournamentControl = lazy(() => import('@/components/TournamentControl'))
 
 interface HomeProps {
   onSwitchPage?: (target: 'home' | 'selector' | 'tournament') => void
 }
 
 export default function Home({ onSwitchPage }: HomeProps) {
-  const { selectedSongs } = useSongStore()
+  const selectedSongs = useSongStore((s) => s.selectedSongs)
   const [activeTab, setActiveTab] = useState<TabType>('gacha')
 
   return (
@@ -151,7 +151,11 @@ export default function Home({ onSwitchPage }: HomeProps) {
             </Suspense>
           )}
           {activeTab === 'poolBuilder' && <SongPoolBuilder />}
-          {activeTab === 'tournament' && <TournamentControl />}
+          {activeTab === 'tournament' && (
+            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-2 border-white/20 border-t-violet-400 rounded-full animate-spin" /></div>}>
+              <TournamentControl />
+            </Suspense>
+          )}
         </main>
       )}
     </div>
