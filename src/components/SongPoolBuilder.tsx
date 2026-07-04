@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Download, Plus, Check, Search, X, FolderPlus, Trash2 } from 'lucide-react'
 import { useSongStore, type Song, type Difficulty, type ChartType } from '@/store/songStore'
+import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 30
 
@@ -137,40 +138,40 @@ export default function SongPoolBuilder() {
 
   if (!showBuilder) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto px-4 py-6 animate-enter">
         {/* 已创建的曲库列表 */}
         {songPools.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-white font-rajdhani font-bold text-lg mb-3 flex items-center gap-2">
-              <FolderPlus size={20} />
-              已创建的曲库
+            <h3 className="text-white font-rajdhani font-bold text-lg mb-3 flex items-center gap-2 animate-enter">
+              <FolderPlus size={20} className="text-violet-400" />
+              已创建的谱面库
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-children">
               {songPools.map(pool => (
                 <div
                   key={pool.id}
-                  className="p-4 rounded-xl bg-gradient-to-b from-slate-700 to-slate-800 border-2 border-slate-600 hover:border-slate-500 transition-all duration-200"
+                  className="p-4 rounded-3xl glass-panel hover:border-white/20 transition-all duration-200 hover-lift"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-white font-bold truncate">{pool.name}</h4>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => exportPoolAsJson(pool)}
-                        className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors"
+                        className="p-1.5 rounded-xl glass-panel text-cyan-300 hover:text-white hover:border-cyan-400/30 transition-all duration-200 press-down"
                         title="导出 JSON"
                       >
                         <Download size={14} />
                       </button>
                       <button
                         onClick={() => removeSongPool(pool.id)}
-                        className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors"
+                        className="p-1.5 rounded-xl glass-panel text-rose-300 hover:text-white hover:border-rose-400/30 transition-all duration-200 press-down"
                         title="删除"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                  <p className="text-slate-400 text-sm">{pool.songs.length} 首谱面</p>
+                  <p className="text-white/40 text-sm">{pool.songs.length} 首谱面</p>
                 </div>
               ))}
             </div>
@@ -179,36 +180,36 @@ export default function SongPoolBuilder() {
 
         <button
           onClick={() => setShowBuilder(true)}
-          className="w-full py-4 rounded-xl bg-gradient-to-b from-purple-600 to-purple-700 border-3 border-purple-400 text-white font-rajdhani font-bold text-lg hover:from-purple-500 hover:to-purple-600 transition-all duration-200 shadow-lg flex items-center justify-center gap-3"
+          className="w-full py-4 rounded-3xl btn-primary text-lg press-down btn-shimmer"
         >
           <Plus size={24} />
-          从现有谱面中创建新曲库
+          从现有谱面中创建新谱面库
         </button>
       </div>
     )
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 animate-enter">
       {/* 顶部操作栏 */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 animate-enter">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowBuilder(false)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-600 text-white font-rajdhani font-bold hover:bg-slate-500 transition-all duration-200"
+            className="btn-secondary press-down"
           >
             <X size={18} /> 关闭
           </button>
-          <h2 className="text-white font-orbitron font-bold text-xl">创建新曲库</h2>
+          <h2 className="text-white font-orbitron font-bold text-xl">创建新谱面库</h2>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-slate-300 font-rajdhani">
-            已选择 {selectedSongIds.size} 首
+          <span className="text-white/50 font-rajdhani">
+            已选择 {selectedSongIds.size} 张
           </span>
           {selectedSongs.length > 0 && (
             <button
               onClick={exportSelectedAsJson}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-b from-blue-600 to-blue-700 border-2 border-blue-400 text-white font-rajdhani font-bold hover:from-blue-500 hover:to-blue-600 transition-all duration-200 shadow-lg"
+              className="btn-secondary press-down"
             >
               <Download size={16} /> 导出 JSON
             </button>
@@ -223,15 +224,15 @@ export default function SongPoolBuilder() {
             type="text"
             value={poolName}
             onChange={e => setPoolName(e.target.value)}
-            placeholder="输入曲库名称..."
-            className="flex-1 px-4 py-3 rounded-xl bg-slate-700 text-white border-2 border-slate-600 font-bold focus:border-purple-400 focus:outline-none transition-colors"
+            placeholder="输入谱面库名称..."
+            className="input-refined flex-1 font-bold"
           />
           <button
             onClick={createPool}
             disabled={!poolName.trim() || selectedSongs.length === 0}
-            className="px-6 py-3 rounded-xl bg-gradient-to-b from-green-600 to-green-700 border-2 border-green-400 text-white font-rajdhani font-bold hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className={cn('btn-primary press-down btn-shimmer', (!poolName.trim() || selectedSongs.length === 0) && 'opacity-50 cursor-not-allowed')}
           >
-            <Check size={18} /> 创建曲库
+            <Check size={18} /> 创建谱面库
           </button>
         </div>
       </div>
@@ -239,19 +240,19 @@ export default function SongPoolBuilder() {
       {/* 搜索和筛选 */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); setCurrentPage(0) }}
-            placeholder="搜索谱面、作曲家、流派..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-700 text-white border-2 border-slate-600 font-rajdhani focus:border-purple-400 focus:outline-none transition-colors"
+            placeholder="搜索曲名、作曲家、流派..."
+            className="input-refined w-full pl-10 pr-4 py-2.5"
           />
         </div>
         <select
           value={filterDifficulty}
           onChange={e => { setFilterDifficulty(e.target.value as Difficulty | ''); setCurrentPage(0) }}
-          className="px-4 py-2.5 rounded-xl bg-slate-700 text-white border-2 border-slate-600 font-rajdhani focus:border-purple-400 focus:outline-none transition-colors"
+          className="input-refined w-auto px-4 py-2.5"
         >
           <option value="">全部难度</option>
           <option value="BASIC">BASIC</option>
@@ -259,11 +260,12 @@ export default function SongPoolBuilder() {
           <option value="EXPERT">EXPERT</option>
           <option value="MASTER">MASTER</option>
           <option value="Re:MASTER">Re:MASTER</option>
+          <option value="UTAGE">UTAGE</option>
         </select>
         <select
           value={filterChartType}
           onChange={e => { setFilterChartType(e.target.value as ChartType | ''); setCurrentPage(0) }}
-          className="px-4 py-2.5 rounded-xl bg-slate-700 text-white border-2 border-slate-600 font-rajdhani focus:border-purple-400 focus:outline-none transition-colors"
+          className="input-refined w-auto px-4 py-2.5"
         >
           <option value="">全部类型</option>
           <option value="standard">标准谱面</option>
@@ -272,9 +274,9 @@ export default function SongPoolBuilder() {
       </div>
 
       {/* 定数范围 */}
-      <div className="flex items-center gap-3 mb-4">
-        <span className="text-slate-300 text-sm font-rajdhani font-semibold whitespace-nowrap">定数范围</span>
-        <div className="flex items-center gap-2 flex-1">
+      <div className="flex flex-wrap items-center gap-3 mb-4 p-4 rounded-3xl glass-panel">
+        <span className="text-white/60 text-sm font-rajdhani font-semibold whitespace-nowrap">定数范围</span>
+        <div className="flex items-center gap-2 flex-1 min-w-[120px]">
           <input
             type="range"
             min="1.0"
@@ -282,12 +284,12 @@ export default function SongPoolBuilder() {
             step="0.1"
             value={minLevelValue}
             onChange={e => { setMinLevelValue(parseFloat(e.target.value)); setCurrentPage(0) }}
-            className="flex-1 accent-purple-400"
+            className="flex-1 accent-violet-400"
           />
-          <span className="text-yellow-400 text-xs font-rajdhani font-bold w-10 text-center">{minLevelValue.toFixed(1)}</span>
+          <span className="text-amber-300 text-xs font-rajdhani font-bold w-10 text-center">{minLevelValue.toFixed(1)}</span>
         </div>
-        <span className="text-slate-500">-</span>
-        <div className="flex items-center gap-2 flex-1">
+        <span className="text-white/30">-</span>
+        <div className="flex items-center gap-2 flex-1 min-w-[120px]">
           <input
             type="range"
             min="1.0"
@@ -295,13 +297,13 @@ export default function SongPoolBuilder() {
             step="0.1"
             value={maxLevelValue}
             onChange={e => { setMaxLevelValue(parseFloat(e.target.value)); setCurrentPage(0) }}
-            className="flex-1 accent-purple-400"
+            className="flex-1 accent-violet-400"
           />
-          <span className="text-yellow-400 text-xs font-rajdhani font-bold w-10 text-center">{maxLevelValue.toFixed(1)}</span>
+          <span className="text-amber-300 text-xs font-rajdhani font-bold w-10 text-center">{maxLevelValue.toFixed(1)}</span>
         </div>
         <button
           onClick={() => { setMinLevelValue(1.0); setMaxLevelValue(15.5); setCurrentPage(0) }}
-          className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 transition-colors"
+          className="btn-secondary text-xs py-1.5 px-3 press-down"
         >
           重置
         </button>
@@ -311,19 +313,19 @@ export default function SongPoolBuilder() {
       <div className="flex gap-2 mb-4">
         <button
           onClick={selectAllVisible}
-          className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-sm font-bold hover:bg-slate-600 transition-colors"
+          className="btn-secondary text-xs py-1.5 px-3 press-down"
         >
-          全选本页
+          本页全选
         </button>
         <button
           onClick={deselectAllVisible}
-          className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-sm font-bold hover:bg-slate-600 transition-colors"
+          className="btn-secondary text-xs py-1.5 px-3 press-down"
         >
-          取消本页
+          取消本页选中
         </button>
         <button
           onClick={() => setSelectedSongIds(new Set())}
-          className="px-3 py-1.5 rounded-lg bg-red-700/50 text-red-300 text-sm font-bold hover:bg-red-700 transition-colors"
+          className="btn-danger text-xs py-1.5 px-3 press-down"
         >
           清空全部
         </button>
@@ -332,21 +334,21 @@ export default function SongPoolBuilder() {
       {/* 分页信息 */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mb-4">
-          <span className="text-slate-400 text-sm font-rajdhani">
+          <span className="text-white/40 text-sm font-rajdhani">
             共 {filteredSongs.length} 首，第 {currentPage + 1}/{totalPages} 页
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
               disabled={currentPage === 0}
-              className="px-3 py-1.5 rounded-lg bg-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition-colors text-sm"
+              className={cn('btn-secondary text-xs py-1.5 px-3 press-down', currentPage === 0 && 'opacity-50 cursor-not-allowed')}
             >
               上一页
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
-              className="px-3 py-1.5 rounded-lg bg-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600 transition-colors text-sm"
+              className={cn('btn-secondary text-xs py-1.5 px-3 press-down', currentPage >= totalPages - 1 && 'opacity-50 cursor-not-allowed')}
             >
               下一页
             </button>
@@ -355,31 +357,30 @@ export default function SongPoolBuilder() {
       )}
 
       {/* 歌曲列表 */}
-      <div className="space-y-2">
+      <div className="space-y-2 stagger-children">
         {paginatedSongs.map(song => {
           const isSelected = selectedSongIds.has(song.id)
           return (
             <div
               key={song.id}
               onClick={() => toggleSongSelection(song.id)}
-              className={`
-                flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200
-                ${isSelected
-                  ? 'bg-purple-700/30 border-purple-400 shadow-lg'
-                  : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-750'
-                }
-              `}
+              className={cn(
+                'flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-200 hover-lift',
+                isSelected
+                  ? 'glass-panel border-violet-400/50 shadow-lg shadow-violet-500/10'
+                  : 'glass-panel hover:border-white/20'
+              )}
             >
               {/* 选择框 */}
-              <div className={`
-                w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200
-                ${isSelected ? 'bg-purple-500 border-purple-400' : 'border-slate-500'}
-              `}>
+              <div className={cn(
+                'w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200',
+                isSelected ? 'bg-violet-500 border-violet-400' : 'border-white/30'
+              )}>
                 {isSelected && <Check size={14} className="text-white" />}
               </div>
 
               {/* 封面 */}
-              <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0 border border-white/10">
                 {song.cover && (
                   <img src={song.cover} alt={song.name} className="w-full h-full object-cover" loading="lazy" />
                 )}
@@ -388,20 +389,21 @@ export default function SongPoolBuilder() {
               {/* 信息 */}
               <div className="flex-1 min-w-0">
                 <h4 className="text-white font-bold truncate">{song.name}</h4>
-                <p className="text-slate-400 text-sm truncate">
+                <p className="text-white/40 text-sm truncate">
                   {song.author} · {song.genre}
                 </p>
               </div>
 
               {/* 难度标签 */}
-              <span className={`
-                px-2 py-1 rounded-lg text-xs font-bold flex-shrink-0
-                ${song.difficulty === 'BASIC' ? 'bg-green-600 text-white' :
-                  song.difficulty === 'ADVANCED' ? 'bg-sky-600 text-white' :
-                  song.difficulty === 'EXPERT' ? 'bg-pink-600 text-white' :
-                  song.difficulty === 'MASTER' ? 'bg-purple-600 text-white' :
-                  'bg-yellow-600 text-white'}
-              `}>
+              <span className={cn(
+                'px-2 py-1 rounded-lg text-xs font-bold flex-shrink-0 border',
+                song.difficulty === 'BASIC' ? 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30' :
+                song.difficulty === 'ADVANCED' ? 'bg-sky-500/15 text-sky-200 border-sky-500/30' :
+                song.difficulty === 'EXPERT' ? 'bg-pink-500/15 text-pink-200 border-pink-500/30' :
+                song.difficulty === 'MASTER' ? 'bg-violet-500/15 text-violet-200 border-violet-500/30' :
+                song.difficulty === 'Re:MASTER' ? 'bg-amber-500/15 text-amber-200 border-amber-500/30' :
+                'bg-cyan-500/15 text-cyan-200 border-cyan-500/30'
+              )}>
                 {song.difficulty}
               </span>
 
@@ -411,15 +413,15 @@ export default function SongPoolBuilder() {
               </span>
 
               {/* 定数 */}
-              <span className="text-yellow-400 font-rajdhani font-bold text-xs flex-shrink-0">
+              <span className="text-amber-300 font-rajdhani font-bold text-xs flex-shrink-0">
                 {song.levelValue.toFixed(1)}
               </span>
 
               {/* 谱面类型 */}
-              <span className={`
-                px-2 py-1 rounded-lg text-xs font-bold flex-shrink-0
-                ${song.chartType === 'dx' ? 'bg-purple-500 text-white' : 'bg-blue-500 text-white'}
-              `}>
+              <span className={cn(
+                'px-2 py-1 rounded-lg text-xs font-bold flex-shrink-0 border',
+                song.chartType === 'dx' ? 'bg-violet-500/15 text-violet-200 border-violet-500/30' : 'bg-cyan-500/15 text-cyan-200 border-cyan-500/30'
+              )}>
                 {song.chartType === 'dx' ? 'DX' : 'STD'}
               </span>
             </div>
@@ -428,7 +430,10 @@ export default function SongPoolBuilder() {
       </div>
 
       {filteredSongs.length === 0 && (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-white/40 animate-enter-scale">
+          <div className="w-16 h-16 rounded-3xl glass-panel flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-500/10">
+            <Search size={28} className="opacity-40" />
+          </div>
           <p className="font-bold text-lg">未找到匹配谱面</p>
           <p className="text-sm mt-1">尝试调整搜索条件</p>
         </div>

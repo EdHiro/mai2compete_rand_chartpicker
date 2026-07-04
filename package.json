@@ -9,12 +9,15 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc -b --noEmit",
-    "sync": "node sync-server.js"
+    "sync": "node sync-server.js",
+    "ws-server": "node ws-server.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "html2canvas": "^1.4.1",
     "iconv-lite": "^0.7.2",
     "lucide-react": "^0.511.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.3.0",

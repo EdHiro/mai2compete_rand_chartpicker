@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import { Upload, AlertCircle, CheckCircle, Cloud } from 'lucide-react'
+import { Upload, AlertCircle, CheckCircle, Cloud, X } from 'lucide-react'
 import { useSongStore, type Song, type Difficulty, type ChartType } from '@/store/songStore'
+import { cn } from '@/lib/utils'
 
 interface ImportResult {
   success: boolean
@@ -8,11 +9,18 @@ interface ImportResult {
   count: number
 }
 
+interface PendingImport {
+  songs: Song[]
+  duplicates: { song: Song; existing: Song; poolId: string; poolName: string }[]
+  poolName: string
+}
+
 export default function JsonImport() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const { importSongs, importSongsFromAPI } = useSongStore()
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
+  const { importSongs, addSongPool, importSongsFromAPI } = useSongStore()
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -36,11 +44,34 @@ export default function JsonImport() {
         const result = validateAndParseSongs(data)
         
         if (result.success && result.songs) {
-          // 如果主库已有数据，作为额外曲库导入；否则作为主库
-          const { songs: mainSongs, addSongPool } = useSongStore.getState()
+          const { songs: mainSongs, songPools } = useSongStore.getState()
+          const poolName = file.name.replace(/\.json$/i, '')
+
+          // 构建现有谱面映射（id -> { song, poolId, poolName }）
+          const existingMap = new Map<string, { song: Song; poolId: string; poolName: string }>()
+          mainSongs.forEach((s) => existingMap.set(s.id, { song: s, poolId: 'main', poolName: '主库' }))
+          songPools.forEach((p) => p.songs.forEach((s) => {
+            if (!existingMap.has(s.id)) {
+              existingMap.set(s.id, { song: s, poolId: p.id, poolName: p.name })
+            }
+          }))
+
+          const duplicates: PendingImport['duplicates'] = []
+          for (const song of result.songs) {
+            const existing = existingMap.get(song.id)
+            if (existing) {
+              duplicates.push({ song, existing: existing.song, poolId: existing.poolId, poolName: existing.poolName })
+            }
+          }
+
+          if (duplicates.length > 0) {
+            setPendingImport({ songs: result.songs, duplicates, poolName })
+            return
+          }
+
+          // 无重复时直接导入
           if (mainSongs.length > 0) {
-            const poolName = file.name.replace(/\.json$/i, '')
-            const poolId = addSongPool(poolName, result.songs)
+            addSongPool(poolName, result.songs)
             setImportResult({
               success: true,
               message: `成功导入 ${result.songs.length} 张谱面到额外曲库「${poolName}」`,
@@ -112,12 +143,56 @@ export default function JsonImport() {
     })
   }
 
+  const applyImport = (mode: 'skip' | 'overwrite' | 'pool') => {
+    if (!pendingImport) return
+    const { songs, poolName } = pendingImport
+    const { songs: mainSongs } = useSongStore.getState()
+
+    if (mode === 'pool') {
+      addSongPool(poolName, songs)
+      setImportResult({
+        success: true,
+        message: `已创建曲库「${poolName}」，导入 ${songs.length} 张谱面`,
+        count: songs.length
+      })
+    } else if (mode === 'overwrite') {
+      const merged = [...mainSongs]
+      for (const s of songs) {
+        const idx = merged.findIndex((x) => x.id === s.id)
+        if (idx >= 0) merged[idx] = s
+        else merged.push(s)
+      }
+      importSongs(merged)
+      setImportResult({
+        success: true,
+        message: `已覆盖主库，共 ${merged.length} 张谱面`,
+        count: merged.length
+      })
+    } else {
+      // skip：仅导入不重复的谱面
+      const existingIds = new Set(mainSongs.map((s) => s.id))
+      const newOnly = songs.filter((s) => !existingIds.has(s.id))
+      if (mainSongs.length === 0) {
+        importSongs(newOnly)
+      } else {
+        addSongPool(poolName, newOnly)
+      }
+      setImportResult({
+        success: true,
+        message: `跳过重复，导入 ${newOnly.length} 张新谱面`,
+        count: newOnly.length
+      })
+    }
+
+    setPendingImport(null)
+  }
+
   return (
-    <div className="mb-6">
+    <div className="mb-6 animate-enter">
       <div className="flex flex-wrap gap-3">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-b from-blue-600 to-blue-700 border-3 border-blue-400 text-white font-rajdhani font-bold hover:from-blue-500 hover:to-blue-600 transition-all duration-200 shadow-lg"
+          className="btn-primary press-down btn-shimmer"
         >
           <Upload size={18} />
           导入谱面数据 (JSON)
@@ -126,13 +201,12 @@ export default function JsonImport() {
         <button
           onClick={handleApiImport}
           disabled={isLoading}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl border-3 font-rajdhani font-bold transition-all duration-200 shadow-lg ${
-            isLoading
-              ? 'bg-gray-500 border-gray-400 text-gray-300 cursor-not-allowed'
-              : 'bg-gradient-to-b from-green-600 to-green-700 border-green-400 text-white hover:from-green-500 hover:to-green-600'
-          }`}
+          className={cn(
+            'btn-secondary press-down',
+            isLoading && 'opacity-50 cursor-not-allowed'
+          )}
         >
-          <Cloud size={18} className={isLoading ? 'animate-spin' : ''} />
+          <Cloud size={18} className={cn(isLoading && 'animate-spin')} />
           {isLoading ? '获取中...' : '从 lxns 导入'}
         </button>
       </div>
@@ -146,17 +220,79 @@ export default function JsonImport() {
       />
 
       {importResult && (
-        <div className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-lg ${
-          importResult.success 
-            ? 'bg-green-100 border-2 border-green-400 text-green-800'
-            : 'bg-red-100 border-2 border-red-400 text-red-800'
-        }`}>
+        <div className={cn(
+          'mt-3 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold animate-enter',
+          importResult.success
+            ? 'badge-success'
+            : 'badge-error'
+        )}>
           {importResult.success ? (
             <CheckCircle size={18} className="flex-shrink-0" />
           ) : (
             <AlertCircle size={18} className="flex-shrink-0" />
           )}
-          <span className="font-bold text-sm">{importResult.message}</span>
+          <span>{importResult.message}</span>
+        </div>
+      )}
+
+      {/* 重复谱面处理弹窗 */}
+      {pendingImport && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel rounded-3xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">
+                检测到 {pendingImport.duplicates.length} 张重复谱面
+              </h3>
+              <button
+                onClick={() => setPendingImport(null)}
+                className="p-1.5 rounded-xl hover:bg-white/10 text-white/50 hover:text-white transition-colors press-down"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-white/50 mb-4">
+              新文件「{pendingImport.poolName}」共 {pendingImport.songs.length} 张谱面，
+              其中 {pendingImport.duplicates.length} 张与现有曲库重复。
+            </p>
+            <div className="max-h-60 overflow-auto space-y-2 mb-4 rounded-2xl p-3 glass-panel stagger-children">
+              {pendingImport.duplicates.map((d) => (
+                <div key={d.song.id} className="text-sm border-b border-white/10 last:border-0 pb-2 last:pb-0">
+                  <p className="font-bold text-white">
+                    {d.song.name} · {d.song.difficulty} Lv.{d.song.level}{d.song.isPlus ? '+' : ''}
+                  </p>
+                  <p className="text-white/40 text-xs">
+                    已存在于：{d.poolName}（ID: {d.song.id}）
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => applyImport('skip')}
+                className="btn-primary text-xs py-2.5 press-down btn-shimmer"
+              >
+                跳过重复，导入新谱面
+              </button>
+              <button
+                onClick={() => applyImport('overwrite')}
+                className="btn-secondary text-xs py-2.5 border-amber-400/30 text-amber-200 hover:text-white press-down"
+              >
+                覆盖主库
+              </button>
+              <button
+                onClick={() => applyImport('pool')}
+                className="btn-secondary text-xs py-2.5 border-violet-400/30 text-violet-200 hover:text-white press-down"
+              >
+                全部导入为新曲库
+              </button>
+              <button
+                onClick={() => setPendingImport(null)}
+                className="btn-secondary text-xs py-2.5 press-down"
+              >
+                取消
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -175,7 +311,7 @@ function validateAndParseSongs(data: unknown): ValidationResult {
   }
 
   const songs: Song[] = []
-  const validDifficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER']
+  const validDifficulties: Difficulty[] = ['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']
   const validChartTypes: ChartType[] = ['dx', 'standard']
 
   for (let i = 0; i < data.length; i++) {
@@ -203,10 +339,10 @@ function validateAndParseSongs(data: unknown): ValidationResult {
       return { success: false, error: `第 ${i + 1} 项: name 必须是字符串` }
     }
     if (!validDifficulties.includes(obj.difficulty as Difficulty)) {
-      return { success: false, error: `第 ${i + 1} 项: difficulty 必须是 EXPERT、MASTER 或 Re:MASTER` }
+      return { success: false, error: `第 ${i + 1} 项: difficulty 必须是 BASIC、ADVANCED、EXPERT、MASTER、Re:MASTER 或 UTAGE` }
     }
-    if (typeof obj.level !== 'number' || obj.level < 1 || obj.level > 15) {
-      return { success: false, error: `第 ${i + 1} 项: level 必须是 1-15 之间的数字` }
+    if (typeof obj.level !== 'number' || obj.level < 0 || obj.level > 15) {
+      return { success: false, error: `第 ${i + 1} 项: level 必须是 0-15 之间的数字` }
     }
     if (typeof obj.isPlus !== 'boolean') {
       return { success: false, error: `第 ${i + 1} 项: isPlus 必须是布尔值` }
@@ -229,6 +365,7 @@ function validateAndParseSongs(data: unknown): ValidationResult {
 
     songs.push({
       id: obj.id as string,
+      songId: typeof obj.songId === 'number' ? obj.songId : 0,
       name: obj.name as string,
       difficulty: obj.difficulty as Difficulty,
       level: obj.level as number,
@@ -240,6 +377,7 @@ function validateAndParseSongs(data: unknown): ValidationResult {
       chartType: obj.chartType as ChartType,
       genre: typeof obj.genre === 'string' ? obj.genre : '',
       levelValue: typeof obj.levelValue === 'number' ? obj.levelValue : (obj.level as number) + ((obj.isPlus as boolean) ? 0.5 : 0),
+      version: typeof obj.version === 'number' ? obj.version : 0,
     })
   }
 
