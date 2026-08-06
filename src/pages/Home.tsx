@@ -107,21 +107,21 @@ export default function Home({ onSwitchPage }: HomeProps) {
                 <span>指定选谱</span>
               </button>
               <button
-                onClick={() => window.history.pushState({}, '', '/?referee=1')}
+                onClick={() => window.location.href = '/?referee=1'}
                 className="flex-1 min-w-[120px] btn-secondary !flex press-down hover-lift"
               >
                 <Gavel size={16} />
                 <span>裁判台</span>
               </button>
               <button
-                onClick={() => window.history.pushState({}, '', '/bracket')}
+                onClick={() => window.location.href = '/bracket'}
                 className="flex-1 min-w-[120px] btn-secondary !flex press-down hover-lift"
               >
                 <GitBranch size={16} />
                 <span>赛事对阵</span>
               </button>
               <button
-                onClick={() => window.history.pushState({}, '', '/upcoming')}
+                onClick={() => window.location.href = '/upcoming'}
                 className="flex-1 min-w-[120px] btn-secondary !flex press-down hover-lift"
               >
                 <MonitorPlay size={16} />

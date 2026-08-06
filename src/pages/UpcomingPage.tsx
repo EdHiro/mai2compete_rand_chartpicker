@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   useTournamentStore,
-  STAGE_LABELS,
-  STAGE_ORDER,
+  getStageLabel,
+  getStageOrder,
   type TournamentStage,
   type MatchGroup,
   type TournamentPlayer,
@@ -33,8 +33,10 @@ function EmptyState() {
 }
 
 export default function UpcomingPage() {
-  const { stages, currentStage, isTournamentStarted } = useTournamentStore()
+  const { stages, currentStage, isTournamentStarted, isCustomMode, customStages } = useTournamentStore()
   const [highlighted, setHighlighted] = useState<HighlightedGroup | null>(null)
+
+  const stageOrder = useMemo(() => getStageOrder(isCustomMode, customStages), [isCustomMode, customStages])
 
   useEffect(() => {
     const unsubscribe = subscribeSyncEvents((event) => {
@@ -80,7 +82,7 @@ export default function UpcomingPage() {
     }
 
     // 当前阶段全部完成，则按阶段顺序查找更早的未完成分组
-    for (const stage of STAGE_ORDER) {
+    for (const stage of stageOrder) {
       const stageData = stages[stage]
       const pending = stageData?.groups.find((g) => !g.completed)
       if (pending) {
@@ -93,14 +95,14 @@ export default function UpcomingPage() {
     }
 
     return null
-  }, [highlighted, stages, currentStage, isTournamentStarted])
+  }, [highlighted, stages, currentStage, isTournamentStarted, stageOrder])
 
   if (!isTournamentStarted || !displayGroup) {
     return <EmptyState />
   }
 
   const { stage, group, players } = displayGroup
-  const stageLabel = STAGE_LABELS[stage]
+  const stageLabel = getStageLabel(stage, customStages)
   const hasSongs = group.songs.length > 0
 
   return (

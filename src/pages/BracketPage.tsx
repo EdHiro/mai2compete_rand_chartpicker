@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   useTournamentStore,
-  STAGE_LABELS,
-  STAGE_ORDER,
+  getStageLabel,
+  getStageOrder,
+  type CustomStageConfig,
   type TournamentStageData,
   type TournamentPlayer,
   type MatchGroup,
@@ -143,13 +144,15 @@ function StageColumn({
   stage,
   stageData,
   registerRowRef,
+  customStages,
 }: {
   stageIdx: number
   stage: string
   stageData: TournamentStageData
   registerRowRef: (stageIdx: number, groupIdx: number, playerId: string, el: HTMLDivElement | null) => void
+  customStages: CustomStageConfig[]
 }) {
-  const label = STAGE_LABELS[stage as keyof typeof STAGE_LABELS] || stage
+  const label = getStageLabel(stage, customStages)
   const groups = stageData.groups
   const completedGroups = groups.filter((g) => g.completed || g.status === 'completed').length
   const totalGroups = groups.length
@@ -242,15 +245,20 @@ function EmptyState() {
 }
 
 export default function BracketPage() {
-  const { stages, isTournamentStarted } = useTournamentStore()
+  const { stages, isTournamentStarted, isCustomMode, customStages } = useTournamentStore()
+
+  const stageOrder = useMemo(
+    () => getStageOrder(isCustomMode, customStages),
+    [isCustomMode, customStages]
+  )
   const containerRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const [lines, setLines] = useState<LineDef[]>([])
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 })
 
   const stageList = useMemo(
-    () => STAGE_ORDER.map((s) => ({ stage: s, data: stages[s] })),
-    [stages]
+    () => stageOrder.map((s) => ({ stage: s, data: stages[s] })),
+    [stages, stageOrder]
   )
 
   const champion = useMemo(() => {
@@ -282,11 +290,42 @@ export default function BracketPage() {
     const scrollTop = container.scrollTop
     const nextLines: LineDef[] = []
 
-    for (let i = 1; i < STAGE_ORDER.length; i++) {
+    const addLine = (
+      sourceStageIdx: number,
+      sourceGroupIdx: number,
+      targetStageIdx: number,
+      targetGroupIdx: number,
+      playerId: string
+    ) => {
+      const sourceEl = rowRefs.current.get(`${sourceStageIdx}-${sourceGroupIdx}-${playerId}`)
+      const targetEl = rowRefs.current.get(`${targetStageIdx}-${targetGroupIdx}-${playerId}`)
+      if (!sourceEl || !targetEl) return
+
+      const sourceRect = sourceEl.getBoundingClientRect()
+      const targetRect = targetEl.getBoundingClientRect()
+
+      const sx = sourceRect.left + sourceRect.width - containerRect.left + scrollLeft
+      const sy = sourceRect.top + sourceRect.height / 2 - containerRect.top + scrollTop
+      const tx = targetRect.left - containerRect.left + scrollLeft
+      const ty = targetRect.top + targetRect.height / 2 - containerRect.top + scrollTop
+      const midX = (sx + tx) / 2
+
+      nextLines.push({
+        id: `${sourceStageIdx}-${sourceGroupIdx}-${targetStageIdx}-${targetGroupIdx}-${playerId}`,
+        points: [
+          { x: sx, y: sy },
+          { x: midX, y: sy },
+          { x: midX, y: ty },
+          { x: tx, y: ty },
+        ],
+      })
+    }
+
+    for (let i = 1; i < stageOrder.length; i++) {
       const prevStageIdx = i - 1
       const currStageIdx = i
-      const prevStage = stages[STAGE_ORDER[prevStageIdx]]
-      const currStage = stages[STAGE_ORDER[currStageIdx]]
+      const prevStage = stages[stageOrder[prevStageIdx]]
+      const currStage = stages[stageOrder[currStageIdx]]
       const prevPlayerMap = getPlayerMap(prevStage.players)
 
       currStage.groups.forEach((targetGroup, targetGroupIdx) => {
@@ -298,30 +337,29 @@ export default function BracketPage() {
           const sourceGroupIdx = prevStage.groups.findIndex((g) => g.playerIds.includes(playerId))
           if (sourceGroupIdx < 0) return
 
-          const sourceEl = rowRefs.current.get(`${prevStageIdx}-${sourceGroupIdx}-${playerId}`)
-          const targetEl = rowRefs.current.get(`${currStageIdx}-${targetGroupIdx}-${playerId}`)
-          if (!sourceEl || !targetEl) return
-
-          const sourceRect = sourceEl.getBoundingClientRect()
-          const targetRect = targetEl.getBoundingClientRect()
-
-          const sx = sourceRect.left + sourceRect.width - containerRect.left + scrollLeft
-          const sy = sourceRect.top + sourceRect.height / 2 - containerRect.top + scrollTop
-          const tx = targetRect.left - containerRect.left + scrollLeft
-          const ty = targetRect.top + targetRect.height / 2 - containerRect.top + scrollTop
-          const midX = (sx + tx) / 2
-
-          nextLines.push({
-            id: `${prevStageIdx}-${sourceGroupIdx}-${currStageIdx}-${targetGroupIdx}-${playerId}`,
-            points: [
-              { x: sx, y: sy },
-              { x: midX, y: sy },
-              { x: midX, y: ty },
-              { x: tx, y: ty },
-            ],
-          })
+          addLine(prevStageIdx, sourceGroupIdx, currStageIdx, targetGroupIdx, playerId)
         })
       })
+    }
+
+    // 特殊：半决赛胜者直接晋级决赛（跨过半决赛败者组）（默认模式专属）
+    if (!isCustomMode) {
+      const semiIdx = stageOrder.indexOf('semi')
+      const finalIdx = stageOrder.indexOf('final')
+      if (semiIdx >= 0 && finalIdx >= 0) {
+        const semiStage = stages.semi
+        const finalStage = stages.final
+        const semiPlayerMap = getPlayerMap(semiStage.players)
+        finalStage.groups.forEach((targetGroup, targetGroupIdx) => {
+          targetGroup.playerIds.forEach((playerId) => {
+            const semiPlayer = semiPlayerMap.get(playerId)
+            if (!semiPlayer || !semiPlayer.advanced) return
+            const sourceGroupIdx = semiStage.groups.findIndex((g) => g.playerIds.includes(playerId))
+            if (sourceGroupIdx < 0) return
+            addLine(semiIdx, sourceGroupIdx, finalIdx, targetGroupIdx, playerId)
+          })
+        })
+      }
     }
 
     setSvgSize({ width: container.scrollWidth, height: container.scrollHeight })
@@ -415,6 +453,7 @@ export default function BracketPage() {
               stage={stage}
               stageData={data}
               registerRowRef={registerRowRef}
+              customStages={customStages}
             />
           ))}
           {champion ? (

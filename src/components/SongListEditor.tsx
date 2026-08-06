@@ -24,7 +24,7 @@ function ScaledSongCard({ song }: { song: Song }) {
   const height = 520 * PREVIEW_SCALE
   return (
     <div
-      className="relative rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
+      className="relative overflow-hidden shadow-2xl shadow-black/50"
       style={{ width, height }}
     >
       <div

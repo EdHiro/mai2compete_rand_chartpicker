@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  STAGE_LABELS,
-  STAGE_ORDER,
+  getStageLabel,
+  getStageOrder,
+  type CustomStageConfig,
   type TournamentStage,
   type TournamentStageData,
   type TournamentPlayer,
@@ -17,7 +18,7 @@ interface PlayerMatch {
   isCurrent: boolean
 }
 
-function loadCachedData(): { stages?: Record<string, unknown>; currentStage?: string; isTournamentStarted?: boolean } | null {
+function loadCachedData(): { stages?: Record<string, unknown>; currentStage?: string; isTournamentStarted?: boolean; isCustomMode?: boolean; customStages?: CustomStageConfig[] } | null {
   try {
     const saved = localStorage.getItem('tournament-cache')
     if (saved) return JSON.parse(saved)
@@ -29,9 +30,19 @@ export default function PlayerTerminal() {
   const [playerName, setPlayerName] = useState<string>('')
   const [inputName, setInputName] = useState<string>('')
   const [isStarted, setIsStarted] = useState(false)
-  const [stages, setStages] = useState<Record<string, TournamentStageData | null>>({
-    n216: null, '16to8': null, '8to4': null, semi: null, final: null,
-  })
+  const [isCustomMode, setIsCustomMode] = useState(false)
+  const [customStages, setCustomStages] = useState<CustomStageConfig[]>([])
+
+  const stageOrder = useMemo(() => getStageOrder(isCustomMode, customStages), [isCustomMode, customStages])
+  const defaultStages = useMemo(() => {
+    const obj: Record<string, null> = {}
+    for (const stage of stageOrder) {
+      obj[stage] = null
+    }
+    return obj
+  }, [stageOrder])
+
+  const [stages, setStages] = useState<Record<string, TournamentStageData | null>>(defaultStages)
   const [currentStage, setCurrentStage] = useState<TournamentStage>('n216')
 
   // 从 URL 参数获取选手名
@@ -49,33 +60,41 @@ export default function PlayerTerminal() {
     const cached = loadCachedData()
     if (cached?.isTournamentStarted) {
       setIsStarted(true)
+      if (cached.isCustomMode) setIsCustomMode(cached.isCustomMode)
+      if (cached.customStages) setCustomStages(cached.customStages)
       if (cached.currentStage) setCurrentStage(cached.currentStage as TournamentStage)
-      if (cached.stages) setStages(cached.stages as Record<string, TournamentStageData>)
+      if (cached.stages) setStages({ ...defaultStages, ...cached.stages } as Record<string, TournamentStageData | null>)
     }
   }, [])
 
   // Listen for tournament sync events
   useEffect(() => {
-    const handleEvent = (payload: { type: string; stages?: Record<string, TournamentStageData>; currentStage?: TournamentStage }) => {
+    const handleEvent = (payload: { type: string; stages?: Record<string, TournamentStageData>; currentStage?: TournamentStage; isCustomMode?: boolean; customStages?: CustomStageConfig[] }) => {
       if (payload.type === 'update') {
-        if (payload.stages) setStages(payload.stages)
+        if (payload.isCustomMode !== undefined) setIsCustomMode(payload.isCustomMode)
+        if (payload.customStages) setCustomStages(payload.customStages)
+        if (payload.stages) setStages({ ...defaultStages, ...payload.stages })
         if (payload.currentStage) setCurrentStage(payload.currentStage)
         setIsStarted(true)
         localStorage.setItem('tournament-cache', JSON.stringify({
           isTournamentStarted: true,
-          stages: payload.stages,
+          isCustomMode: payload.isCustomMode,
+          customStages: payload.customStages,
+          stages: payload.stages ? { ...defaultStages, ...payload.stages } : undefined,
           currentStage: payload.currentStage,
         }))
       } else if (payload.type === 'reset') {
         setIsStarted(false)
-        setStages({ n216: null, '16to8': null, '8to4': null, semi: null, final: null })
+        setIsCustomMode(false)
+        setCustomStages([])
+        setStages(defaultStages)
         localStorage.removeItem('tournament-cache')
       }
     }
 
     const unsubscribe = subscribeSyncEvents((event: SyncEvent) => {
       if (event.type === 'tournament') {
-        handleEvent(event.payload as { type: string; stages?: Record<string, TournamentStageData>; currentStage?: TournamentStage })
+        handleEvent(event.payload as { type: string; stages?: Record<string, TournamentStageData>; currentStage?: TournamentStage; isCustomMode?: boolean; customStages?: CustomStageConfig[] })
       }
     })
     return unsubscribe
@@ -85,7 +104,7 @@ export default function PlayerTerminal() {
   const findPlayerMatches = (name: string): PlayerMatch[] => {
     if (!name) return []
     const matches: PlayerMatch[] = []
-    for (const stage of STAGE_ORDER) {
+    for (const stage of stageOrder) {
       const stageData = stages[stage]
       if (!stageData) continue
       const player = stageData.players.find(
@@ -94,7 +113,7 @@ export default function PlayerTerminal() {
       if (player) {
         matches.push({
           stage,
-          stageLabel: STAGE_LABELS[stage],
+          stageLabel: getStageLabel(stage, customStages),
           player,
           isCurrent: stage === currentStage,
         })
@@ -115,35 +134,37 @@ export default function PlayerTerminal() {
 
   // 查找下一场对阵对手
   const getNextOpponent = (match: PlayerMatch): TournamentPlayer | null => {
-    if (!match || match.stage === 'final') return null
+    if (!match || (match.stage === 'final' && !isCustomMode)) return null
     const stageData = stages[match.stage]
     if (!stageData) return null
-    const currentIndex = STAGE_ORDER.indexOf(match.stage)
-    const nextStage = STAGE_ORDER[currentIndex + 1]
+    const currentIndex = stageOrder.indexOf(match.stage)
+    const nextStage = stageOrder[currentIndex + 1]
     if (!nextStage) return null
     const nextStageData = stages[nextStage]
     if (!nextStageData) return null
 
     if (!match.player.advanced) return null
 
-    // 16进8：同组另一位选手即为对手
-    if (match.stage === '16to8') {
-      const group = stageData.groups.find((g) => g.playerIds.includes(match.player.id))
-      if (group) {
-        const opponentId = group.playerIds.find((id) => id !== match.player.id)
-        if (opponentId) {
-          return nextStageData.players.find((p) => p.id === opponentId) || null
+    if (!isCustomMode) {
+      // 16进8：同组另一位选手即为对手
+      if (match.stage === '16to8') {
+        const group = stageData.groups.find((g) => g.playerIds.includes(match.player.id))
+        if (group) {
+          const opponentId = group.playerIds.find((id) => id !== match.player.id)
+          if (opponentId) {
+            return nextStageData.players.find((p) => p.id === opponentId) || null
+          }
         }
       }
-    }
 
-    // 半决赛：按 seed 1vs4 / 2vs3 规则
-    if (match.stage === '8to4') {
-      const seed = match.player.seed
-      if (typeof seed !== 'number') return null
-      const opponentSeed = seed === 1 ? 4 : seed === 2 ? 3 : seed === 3 ? 2 : seed === 4 ? 1 : null
-      if (opponentSeed === null) return null
-      return nextStageData.players.find((p) => p.seed === opponentSeed) || null
+      // 半决赛：按 seed 1vs4 / 2vs3 规则
+      if (match.stage === '8to4') {
+        const seed = match.player.seed
+        if (typeof seed !== 'number') return null
+        const opponentSeed = seed === 1 ? 4 : seed === 2 ? 3 : seed === 3 ? 2 : seed === 4 ? 1 : null
+        if (opponentSeed === null) return null
+        return nextStageData.players.find((p) => p.seed === opponentSeed) || null
+      }
     }
 
     return null

@@ -103,7 +103,7 @@ export default function GachaHeader() {
       const songValue = parseLevelValue(song.level, song.isPlus)
       if (songValue < minValue || songValue > maxValue) continue
       if (includePlusOnly && !song.isPlus) continue
-      if (versionFilter !== 'ALL' && song.version !== versionFilter) continue
+      if (versionFilter !== 'ALL' && Math.floor(song.version / 100) !== Math.floor(versionFilter / 100)) continue
       count++
     }
     return count
@@ -290,7 +290,7 @@ export default function GachaHeader() {
                   <span className="badge-warning whitespace-nowrap">流派: {genreFilter}</span>
                 )}
                 {versionFilter !== 'ALL' && (
-                  <span className="badge-warning whitespace-nowrap">版本: {versions.find(v => v.version === versionFilter)?.title ?? versionFilter}</span>
+                  <span className="badge-warning whitespace-nowrap">版本: {versions.find(v => Math.floor(v.version / 100) === Math.floor(versionFilter / 100))?.title ?? versionFilter}</span>
                 )}
                 {(minLevel !== '1' || maxLevel !== '15') && (
                   <span className="badge-warning whitespace-nowrap">等级: {formatLevelRange(minLevel, maxLevel)}</span>
@@ -401,13 +401,15 @@ export default function GachaHeader() {
                     >
                       全部
                     </button>
-                    {versions.map((v) => (
+                    {Array.from(
+                      new Map(versions.map((v) => [Math.floor(v.version / 100), v])).values()
+                    ).map((v) => (
                       <button
                         key={v.version}
                         onClick={() => setVersionFilter(v.version)}
                         className={cn(
                           'px-3 py-1.5 rounded-xl font-rajdhani font-bold text-xs border transition-all duration-200 press-down',
-                          versionFilter === v.version
+                          versionFilter !== 'ALL' && Math.floor(versionFilter / 100) === Math.floor(v.version / 100)
                             ? 'text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border-indigo-400/50 shadow-lg shadow-indigo-500/25'
                             : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20'
                         )}
@@ -449,7 +451,7 @@ export default function GachaHeader() {
                         const numPart = val.replace('+', '')
                         if (!numPart) {
                           setTempMin('')
-                        } else if (parseInt(numPart) >= 1 && parseInt(numPart) <= 15) {
+                        } else if (parseInt(numPart) >= 1 && parseInt(numPart) <= 99) {
                           const hasPlus = val.includes('+')
                           setTempMin(numPart + (hasPlus ? '+' : ''))
                         }
@@ -466,7 +468,7 @@ export default function GachaHeader() {
                         const numPart = val.replace('+', '')
                         if (!numPart) {
                           setTempMax('')
-                        } else if (parseInt(numPart) >= 1 && parseInt(numPart) <= 15) {
+                        } else if (parseInt(numPart) >= 1 && parseInt(numPart) <= 99) {
                           const hasPlus = val.includes('+')
                           setTempMax(numPart + (hasPlus ? '+' : ''))
                         }
@@ -550,7 +552,7 @@ export default function GachaHeader() {
                   <span className="chip">等级 {formatLevelRange(minLevel, maxLevel)}</span>
                   {includePlusOnly && <span className="chip">仅 + 难度</span>}
                   {genreFilter && <span className="chip">流派: {genreFilter}</span>}
-                  {versionFilter !== 'ALL' && <span className="chip">版本: {versions.find(v => v.version === versionFilter)?.title ?? versionFilter}</span>}
+                  {versionFilter !== 'ALL' && <span className="chip">版本: {versions.find(v => Math.floor(v.version / 100) === Math.floor(versionFilter / 100))?.title ?? versionFilter}</span>}
                   <span className="chip text-cyan-200">
                     候选 <span className="text-white font-bold">{filteredCount}</span> 张
                   </span>

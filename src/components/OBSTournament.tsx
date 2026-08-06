@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  STAGE_LABELS,
-  STAGE_ORDER,
+  getStageLabel,
+  getStageOrder,
   type TournamentStage,
   type TournamentStageData,
+  type CustomStageConfig,
 } from '@/store/tournamentStore'
 import { subscribeSyncEvents, type SyncEvent, getConnectionStatus } from '@/utils/tabSync'
 import { Trophy, Medal, Crown } from 'lucide-react'
 
 // 从 localStorage 加载缓存数据
-function loadCachedData(): { stages?: Record<string, unknown>; currentStage?: string; isTournamentStarted?: boolean } | null {
+function loadCachedData(): { stages?: Record<string, unknown>; currentStage?: string; isTournamentStarted?: boolean; isCustomMode?: boolean; customStages?: CustomStageConfig[] } | null {
   try {
     const saved = localStorage.getItem('tournament-cache')
     if (saved) {
@@ -23,13 +24,16 @@ function loadCachedData(): { stages?: Record<string, unknown>; currentStage?: st
 
 export default function OBSTournament() {
   const [isStarted, setIsStarted] = useState(false)
-  const [stages, setStages] = useState<Record<string, TournamentStageData | null>>({
-    n216: null,
-    '16to8': null,
-    '8to4': null,
-    semi: null,
-    final: null,
-  })
+  const [isCustomMode, setIsCustomMode] = useState(false)
+  const [customStages, setCustomStages] = useState<CustomStageConfig[]>([])
+
+  const stageOrder = getStageOrder(isCustomMode, customStages)
+  const defaultStages: Record<string, TournamentStageData | null> = {}
+  for (const s of stageOrder) {
+    defaultStages[s] = null
+  }
+
+  const [stages, setStages] = useState<Record<string, TournamentStageData | null>>(defaultStages)
   const [currentStage, setCurrentStage] = useState<TournamentStage>('n216')
   const [viewMode, setViewMode] = useState<'current' | 'all' | 'champion'>('current')
   const [animateKey, setAnimateKey] = useState(0)
@@ -44,6 +48,12 @@ export default function OBSTournament() {
       setIsStarted(true)
       if (cached.currentStage) {
         setCurrentStage(cached.currentStage as TournamentStage)
+      }
+      if (cached.isCustomMode) {
+        setIsCustomMode(cached.isCustomMode)
+      }
+      if (cached.customStages) {
+        setCustomStages(cached.customStages)
       }
       if (cached.stages) {
         setStages(cached.stages as Record<string, TournamentStageData>)
@@ -72,7 +82,7 @@ export default function OBSTournament() {
     // 从缓存初始化锁定状态，避免加载后立即重复播放入场动画
     const cached = loadCachedData()
     if (cached?.stages) {
-      for (const stage of STAGE_ORDER) {
+      for (const stage of stageOrder) {
         const stageData = cached.stages[stage] as { locked?: boolean } | undefined
         prevStageLocked[stage] = !!stageData?.locked
       }
@@ -85,13 +95,21 @@ export default function OBSTournament() {
       return true
     }
 
-    const handleTournamentEvent = (payload: { type: string; stages?: Record<string, TournamentStageData>; currentStage?: TournamentStage }) => {
+    const handleTournamentEvent = (payload: { type: string; stages?: Record<string, TournamentStageData>; currentStage?: TournamentStage; isCustomMode?: boolean; customStages?: CustomStageConfig[] }) => {
       if (payload.type === 'update') {
         const newStages = payload.stages
         const newCurrentStage = payload.currentStage
 
-        if (newStages) {
-          setStages(newStages)
+        if (payload.isCustomMode !== undefined) {
+          setIsCustomMode(payload.isCustomMode)
+        }
+        if (payload.customStages) {
+          setCustomStages(payload.customStages)
+        }
+
+        const normalizedStages = newStages ? { ...defaultStages, ...newStages } : undefined
+        if (normalizedStages) {
+          setStages(normalizedStages)
         }
         if (newCurrentStage) {
           setCurrentStage(newCurrentStage)
@@ -101,8 +119,10 @@ export default function OBSTournament() {
         // Cache to localStorage
         localStorage.setItem('tournament-cache', JSON.stringify({
           isTournamentStarted: true,
-          stages: newStages,
+          stages: normalizedStages,
           currentStage: newCurrentStage,
+          isCustomMode: payload.isCustomMode ?? isCustomMode,
+          customStages: payload.customStages ?? customStages,
         }))
 
         // 检测阶段切换或新的阶段锁定 → 触发入场动画（带冷却，防止重复播放）
@@ -112,7 +132,7 @@ export default function OBSTournament() {
         }
 
         if (newStages) {
-          for (const stage of STAGE_ORDER) {
+          for (const stage of stageOrder) {
             const newLocked = newStages[stage]?.locked
             const wasLocked = prevStageLocked[stage]
             if (newLocked && !wasLocked) {
@@ -123,13 +143,9 @@ export default function OBSTournament() {
         }
       } else if (payload.type === 'reset') {
         setIsStarted(false)
-        setStages({
-          n216: null,
-          '16to8': null,
-          '8to4': null,
-          semi: null,
-          final: null,
-        })
+        setIsCustomMode(false)
+        setCustomStages([])
+        setStages(defaultStages)
         prevStage = null
         prevStageLocked = {}
         localStorage.removeItem('tournament-cache')
@@ -148,14 +164,15 @@ export default function OBSTournament() {
 
   // 更新页面标题为当前赛段
   useEffect(() => {
-    if (isStarted && STAGE_LABELS[currentStage]) {
+    if (isStarted) {
+      const label = getStageLabel(currentStage, customStages)
       if (viewMode === 'champion') {
         document.title = '🏆 冠军诞生 - 赛事'
       } else {
-        document.title = `${STAGE_LABELS[currentStage]} - 赛事`
+        document.title = `${label} - 赛事`
       }
     }
-  }, [currentStage, isStarted, viewMode])
+  }, [currentStage, isStarted, viewMode, isCustomMode, customStages])
 
   // ============ 冠军页面 ============
   if (viewMode === 'champion') {
@@ -302,7 +319,7 @@ export default function OBSTournament() {
   }
 
   // 获取有数据的阶段
-  const activeStages = STAGE_ORDER.filter((s) => stages[s] && stages[s]!.players.length > 0 && stages[s]!.locked)
+  const activeStages = stageOrder.filter((s) => stages[s] && stages[s]!.players.length > 0 && stages[s]!.locked)
 
   // ============ 总览页面 ============
   if (viewMode === 'all') {
@@ -344,7 +361,7 @@ export default function OBSTournament() {
             </div>
           </div>
 
-          {STAGE_ORDER.map((stage) => {
+          {stageOrder.map((stage) => {
             const stageData = stages[stage]
             if (!stageData || !stageData.locked) return null
             const stagePlayers = stageData.players
@@ -353,7 +370,7 @@ export default function OBSTournament() {
             if (stagePlayers.length === 0) return null
 
             const isStageFinal = stage === 'final'
-            const showStageRank = stage === 'semi' || stage === 'final'
+            const showStageRank = stage === 'semi' || stage === 'semiLoser' || stage === 'final'
 
             return (
               <div key={stage} className="mb-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
@@ -364,7 +381,7 @@ export default function OBSTournament() {
                         ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white border border-blue-400/40 animate-glow-pulse'
                         : 'bg-[#0b0c15] text-white/70 border border-white/10'
                     }`}>
-                      {STAGE_LABELS[stage]}
+                      {getStageLabel(stage, customStages)}
                     </span>
                     <span className="text-green-400 text-sm">✓ 已锁定</span>
                   </h2>
@@ -496,7 +513,7 @@ export default function OBSTournament() {
     .filter((p) => p.score !== null)
     .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)) ?? []
 
-  const showRank = currentStage === 'semi' || currentStage === 'final'
+  const showRank = currentStage === 'semi' || currentStage === 'semiLoser' || currentStage === 'final'
   const isFinal = currentStage === 'final'
   const finalStage = stages['final']
   const hasChampion = finalStage?.locked && finalStage?.players.some((p) => p.rank === 1)
@@ -528,7 +545,7 @@ export default function OBSTournament() {
         <div className="flex items-center justify-between shrink-0 mb-4">
           <h1 className="text-5xl font-black title-gradient flex items-center gap-5">
             <Trophy className="text-amber-400" size={56} />
-            {STAGE_LABELS[currentStage]}
+            {getStageLabel(currentStage, customStages)}
           </h1>
           <div className="flex gap-3 items-center">
             {activeStages.map((s) => (
@@ -542,7 +559,7 @@ export default function OBSTournament() {
                   s === currentStage ? 'btn-primary' : 'btn-secondary'
                 } text-lg py-3 px-5 press-down`}
               >
-                {STAGE_LABELS[s]}
+                {getStageLabel(s, customStages)}
               </button>
             ))}
             {activeStages.length > 1 && (

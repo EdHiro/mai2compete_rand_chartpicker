@@ -231,7 +231,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
   selectedSongs: [],
   activeFilters: new Set(['BASIC', 'ADVANCED', 'EXPERT', 'MASTER', 'Re:MASTER', 'UTAGE']),
   minLevel: '1',
-  maxLevel: '15',
+  maxLevel: '99',
   includePlusOnly: false,
   chartTypeFilter: new Set(['dx', 'standard']),
   genreFilter: '',
@@ -303,7 +303,7 @@ export const useSongStore = create<SongStore>((set, get) => ({
       const songValue = parseSongLevel(song)
       if (songValue < minValue || songValue > maxValue) continue
       if (ipOnly && !song.isPlus) continue
-      if (versionFilter !== 'ALL' && song.version !== versionFilter) continue
+      if (versionFilter !== 'ALL' && Math.floor(song.version / 100) !== Math.floor(versionFilter / 100)) continue
       if (designerQ && song.difficultyAuthor.toLowerCase() !== designerQ) continue
       result.push(song)
     }

@@ -58,7 +58,7 @@ const DrawCard = function ({ song, index, showFront, animationState }: DrawCardP
   return (
     <div className="flex flex-col items-center gap-3 relative">
       <div
-        className={`relative w-[300px] h-[520px] perspective-1000 ${
+        className={`relative w-[300px] h-[580px] perspective-1000 ${
           isExiting ? 'animate-cardExit' : 'animate-cardEntrance'
         }`}
         style={{ animationDelay: `${index * 120}ms` }}
@@ -171,7 +171,7 @@ function SlotCard({ song, index, isNew, isMoved, selfEntranceDelay = 0 }: SlotCa
       className={`flex flex-col items-center gap-3 ${innerAnim}`}
       style={animDelay > 0 ? { animationDelay: `${animDelay}ms` } : undefined}
     >
-      <div className="relative w-[300px] h-[520px] perspective-1000">
+      <div className="relative w-[300px] h-[580px] perspective-1000">
         <div
           className={`w-full h-full preserve-3d transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] relative z-10 ${
             showFront ? 'rotate-y-180' : ''

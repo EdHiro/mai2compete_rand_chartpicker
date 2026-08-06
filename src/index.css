@@ -585,7 +585,7 @@ body {
 /* Reusable card components */
 @layer components {
   .card-cover-window {
-    @apply absolute top-[69px] left-[27.5px] right-[14px] z-10 overflow-hidden;
+    @apply absolute top-[77.4px] left-[28px] right-[26px] z-10 overflow-hidden;
   }
 
   /* 👇 优化：增加 overflow-hidden 和 whitespace-nowrap 确保跑马灯效果不溢出、不换行 */
@@ -599,7 +599,7 @@ body {
   }
 
   .card-author {
-    @apply text-xs uppercase tracking-[0.22em] text-slate-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)];
+    @apply text-xs tracking-[0.22em] text-slate-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)];
   }
 
   .difficulty-label {
@@ -607,7 +607,7 @@ body {
   }
 
   .lv-pill {
-    @apply bg-white/95 rounded-[12px] px-2 py-1 flex items-center gap-2 shadow-[0_12px_24px_rgba(2,6,23,0.18)];
+    @apply bg-white/95 rounded-[12px] px-2 py-1 flex items-center gap-[-3px] shadow-[0_12px_24px_rgba(2,6,23,0.18)];
   }
 
   .bottom-pill {

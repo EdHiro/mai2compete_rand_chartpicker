@@ -52,9 +52,9 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
   const authorContainerRef = useRef<HTMLDivElement>(null)
   const authorTextRef = useRef<HTMLParagraphElement>(null)
   const [shouldScroll, setShouldScroll] = useState(false)
-  const [animationDuration, setAnimationDuration] = useState(10)
+  const [titleScrollDuration, setTitleScrollDuration] = useState(0)
   const [authorShouldScroll, setAuthorShouldScroll] = useState(false)
-  const [authorAnimationDuration, setAuthorAnimationDuration] = useState(10)
+  const [authorScrollDuration, setAuthorScrollDuration] = useState(0)
 
   useEffect(() => {
     if (titleContainerRef.current && titleTextRef.current) {
@@ -68,7 +68,7 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         const singleItemWidth = textWidth + 64
         const scrollSpeed = 80
         const calculatedDuration = Math.max(singleItemWidth / scrollSpeed, 4)
-        setAnimationDuration(calculatedDuration)
+        setTitleScrollDuration(calculatedDuration)
       }
     }
 
@@ -83,10 +83,38 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         const singleItemWidth = textWidth + 64
         const scrollSpeed = 80
         const calculatedDuration = Math.max(singleItemWidth / scrollSpeed, 4)
-        setAuthorAnimationDuration(calculatedDuration)
+        setAuthorScrollDuration(calculatedDuration)
       }
     }
   }, [song.name, song.author])
+
+  const PAUSE_DURATION = 1
+
+  const titleKeyframes = useMemo(() => {
+    if (!shouldScroll || titleScrollDuration <= 0) return ''
+    const total = titleScrollDuration + PAUSE_DURATION
+    const ratio = (titleScrollDuration / total) * 100
+    return `
+      @keyframes marquee-title-${song.id} {
+        0% { transform: translateX(0); }
+        ${ratio.toFixed(2)}% { transform: translateX(-50%); }
+        100% { transform: translateX(-50%); }
+      }
+    `
+  }, [shouldScroll, titleScrollDuration, song.id])
+
+  const authorKeyframes = useMemo(() => {
+    if (!authorShouldScroll || authorScrollDuration <= 0) return ''
+    const total = authorScrollDuration + PAUSE_DURATION
+    const ratio = (authorScrollDuration / total) * 100
+    return `
+      @keyframes marquee-author-${song.id} {
+        0% { transform: translateX(0); }
+        ${ratio.toFixed(2)}% { transform: translateX(-50%); }
+        100% { transform: translateX(-50%); }
+      }
+    `
+  }, [authorShouldScroll, authorScrollDuration, song.id])
 
   // 使用预计算的图片缓存，避免运行时重复计算
   const { chartTypeText, chartTypeColor, cardBg, lvBg, levelIcon } = useMemo(() => {
@@ -142,11 +170,14 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
   const qmarkImage = isUtage ? IMAGE_CACHE['qmark-UTAGE'] : null
 
   return (
-    <div className={`w-full h-full overflow-hidden ${className}`}>
+    <div className={`w-full  h-full overflow-hidden ${className}`}>
+      {(titleKeyframes || authorKeyframes) && (
+        <style>{`${titleKeyframes}${authorKeyframes}`}</style>
+      )}
       <img
         src={cardBg}
         alt="Card Background"
-        className="absolute w-full h-full"
+        className="absolute  w-[340px]  h-full"
       />
 
       {/* Top ChartType Label */}
@@ -162,29 +193,32 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
         <img
           src={song.cover}
           alt={song.name}
-          className="w-[246px] h-[247px]  object-cover"
+          className="w-[270px] h-[276px]  object-cover"
           loading="lazy"
         />
       </div>
 
       {/* Title strip */}
-      <div className="absolute top-[365px] left-[14px] right-[14px] z-25 pointer-events-none">
+      <div className="absolute top-[408px] right-[-15px] z-25 pointer-events-none">
         <div className="card-title-strip">
-          <div ref={titleContainerRef} className="w-full overflow-hidden h-[28px]">
+          <div ref={titleContainerRef} className="w-[297px] overflow-hidden h-[28px]">
             <div 
               className={shouldScroll ? 'animate-marquee' : 'flex justify-center'}
-              style={shouldScroll ? { animationDuration: `${animationDuration}s` } : {}}
+              style={shouldScroll ? {
+                animationName: `marquee-title-${song.id}`,
+                animationDuration: `${titleScrollDuration + PAUSE_DURATION}s`,
+              } : {}}
             >
               <p 
                 ref={titleTextRef} 
-                className={`text-white text-base font-black tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap ${shouldScroll ? 'marquee-text' : ''}`}
+                className={`text-white text-[15px] font-black tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap ${shouldScroll ? 'marquee-text' : ''}`}
               >
                 {song.name}
               </p>
 
               {shouldScroll && (
                 <p 
-                  className="text-white text-base font-black tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap marquee-text"
+                  className="text-white text-[15px] font-black tracking-[0.06em] drop-shadow-[0_3px_14px_rgba(0,0,0,0.68)] whitespace-nowrap marquee-text"
                   aria-hidden="true"
                 >
                   {song.name}
@@ -196,22 +230,25 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       </div>
 
       {/* Author line under title strip */}
-      <div className="absolute top-[410px] left-[18px] right-[18px] z-25 text-center pointer-events-none">
-        <div ref={authorContainerRef} className="w-full overflow-hidden h-[22px]">
+      <div className="absolute top-[457px] left-[18px] right-[18px] z-25 text-center pointer-events-none">
+        <div ref={authorContainerRef} className="w-[295px] overflow-hidden h-[22px] -translate-x-[15px]">
           <div
             className={authorShouldScroll ? 'animate-marquee' : 'flex justify-center'}
-            style={authorShouldScroll ? { animationDuration: `${authorAnimationDuration}s` } : {}}
+            style={authorShouldScroll ? {
+              animationName: `marquee-author-${song.id}`,
+              animationDuration: `${authorScrollDuration + PAUSE_DURATION}s`,
+            } : {}}
           >
             <p
               ref={authorTextRef}
-              className={`card-author whitespace-nowrap ${authorShouldScroll ? 'marquee-text' : ''}`}
+              className={`card-author text-xs whitespace-nowrap ${authorShouldScroll ? 'marquee-text' : ''}`}
             >
               {song.author}
             </p>
 
             {authorShouldScroll && (
               <p
-                className="card-author whitespace-nowrap marquee-text"
+                className="card-author text-xs whitespace-nowrap marquee-text"
                 aria-hidden="true"
               >
                 {song.author}
@@ -222,25 +259,25 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       </div>
 
       {/* Left purple difficulty label */}
-      <div className="absolute top-[435px] left-[1px] pointer-events-none">
+      <div className="absolute top-[485px] left-[1px] pointer-events-none">
         <div className="flex items-center justify-center w-[300px] h-[28px] text-black rounded-[14px]">
               <p>Suining maimai Championship THE 1 ST</p>
         </div>
       </div>
 
       {/* Right floating LV pill using sprites for numbers */}
-      <div className="absolute top-[270px] right-[3px] z-30 pointer-events-none">
+      <div className="absolute top-[311.5px] right-[3px] z-30 pointer-events-none">
         <img
           src={lvBg}
           alt="LV Background"
           className="h-[90px] w-[130px]"
         />
 
-        <div className="absolute top-[38px] left-[32px] flex items-center whitespace-nowrap">
+        <div className="absolute top-[32px] left-[27px] flex items-center whitespace-nowrap">
           <img
             src={levelIcon}
             alt="LV"
-            className={`h-[48px] w-auto mb-[4px] ${isSingleDigit ? 'mr-[-2px]' : 'mr-[-12px]'}`}
+            className={`h-[56px] w-auto mb-[2px] ${isSingleDigit ? 'mr-[-4px]' : 'mr-[-15px]'}`}
           />
 
           <div className="relative flex items-end">
@@ -249,7 +286,7 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
                 key={key}
                 src={src}
                 alt={alt}
-                className={`h-[44px] w-auto ${mlClass}`}
+                className={`h-[56px] mr-[-5px] w-auto ${mlClass}`}
               />
             ))}
 
@@ -257,7 +294,7 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
               <img
                 src={plusImage}
                 alt="+"
-                className="absolute left-full top-0 h-[45px] w-auto -ml-3.5"
+                className="absolute left-full top-0 h-[50px] w-auto -ml-[13px]"
               />
             )}
             {qmarkImage && (
@@ -272,11 +309,11 @@ function SongCardContent({ song, className = '' }: SongCardContentProps) {
       </div>
 
       {/* Bottom Info */}
-      <div className="absolute bottom-2 left-[18px] right-[18px] z-20">
+      <div className="absolute bottom-3 left-[18px] right-[18px] z-20">
         <div className="relative flex items-center justify-between gap-4">
           <div className="text-left">
             <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-slate-500">Notes Designer</p>
-            <p className="mt-1 text-sm font-bold text-slate-900">{song.difficultyAuthor}</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">{song.difficultyAuthor || '-'}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold tracking-[0.32em] text-slate-500">BPM</p>

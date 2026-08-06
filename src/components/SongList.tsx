@@ -78,7 +78,7 @@ export default function SongList() {
       const songValue = parseLevelValue(song.level, song.isPlus)
       if (songValue < minValue || songValue > maxValue) return false
       if (includePlusOnly && !song.isPlus) return false
-      if (versionFilter !== 'ALL' && song.version !== versionFilter) return false
+      if (versionFilter !== 'ALL' && Math.floor(song.version / 100) !== Math.floor(versionFilter / 100)) return false
       if (designerFilter && song.difficultyAuthor !== designerFilter) return false
       return true
     })
@@ -166,7 +166,7 @@ export default function SongList() {
     }
     // 版本
     if (versionFilter !== 'ALL') {
-      const versionTitle = versions.find((v) => v.version === versionFilter)?.title ?? String(versionFilter)
+      const versionTitle = versions.find((v) => Math.floor(v.version / 100) === Math.floor(versionFilter / 100))?.title ?? String(versionFilter)
       chips.push({
         key: 'version',
         label: versionTitle,
@@ -368,7 +368,7 @@ export default function SongList() {
       {/* 谱面网格：自适应列数，大屏填满、小屏不溢出 */}
       <div
         key={filterSignature}
-        className="max-w-7xl mx-auto grid gap-4 lg:gap-6 card-grid"
+        className="max-w-7xl mx-auto grid gap-4 lg:gap-6"
         style={{
           gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
         }}
@@ -378,8 +378,6 @@ export default function SongList() {
             key={song.id}
             className="flex justify-center w-full song-item-enter"
             style={{
-              contentVisibility: 'auto',
-              containIntrinsicHeight: '520px',
               animationDelay: `${Math.min(index * 25, 400)}ms`,
             }}
           >

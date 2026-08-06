@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Music, RefreshCw, ExternalLink, MousePointerClick, Trophy, Sparkles, CheckCircle2 } from 'lucide-react'
+import { Music, RefreshCw, ExternalLink, MousePointerClick, Trophy, Sparkles, CheckCircle2, ListMusic } from 'lucide-react'
 import { Song, Difficulty, useSongStore } from '@/store/songStore'
 import { useTournamentStore, type TournamentStage, type StageSong, STAGE_LABELS } from '@/store/tournamentStore'
 import { broadcastSyncEvent } from '@/utils/tabSync'
@@ -47,7 +47,7 @@ const DrawCard = function ({ song, index, showFront, animationState }: DrawCardP
   return (
     <div
       className={cn(
-        'relative w-[300px] h-[520px] perspective-1000',
+        'relative w-[300px] h-[580px] perspective-1000',
         isExiting ? 'animate-cardExit' : 'animate-cardEntrance'
       )}
       style={{ animationDelay: `${index * 150}ms` }}
@@ -355,6 +355,18 @@ export default function GachaResults({ onSwitchPage }: GachaResultsProps) {
             >
               <RefreshCw size={16} className={cn(phase === 'exiting' && 'animate-spin')} />
               继续抽卡
+            </button>
+
+            <button
+              onClick={clearSelectedSongs}
+              disabled={phase === 'exiting'}
+              className={cn(
+                'btn-secondary text-xs sm:text-sm press-down',
+                phase === 'exiting' && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <ListMusic size={16} />
+              返回曲库
             </button>
 
             <a

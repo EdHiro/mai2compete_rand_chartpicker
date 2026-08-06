@@ -3,7 +3,7 @@ import { useSongStore, type Song, type PlayerSelection, type Difficulty } from '
 import { useTournamentStore, type TournamentStage, type StageSong, type TournamentPlayer } from '@/store/tournamentStore'
 import { broadcastSyncEvent, subscribeSyncEvents } from '@/utils/tabSync'
 import { useToast } from '@/components/Toast'
-import { Search, Eye, Send, Disc3, UserPlus, UserMinus, Users, Check, SlidersHorizontal, Ban, Trophy, Shuffle, X, ChevronRight, Command, Database, QrCode, Smartphone, Zap, RotateCcw } from 'lucide-react'
+import { Search, Eye, Disc3, UserPlus, UserMinus, Users, Check, SlidersHorizontal, Ban, Shuffle, X, ChevronRight, Command, Database, QrCode, Smartphone, Zap, RotateCcw } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { cn } from '@/lib/utils'
 
@@ -198,6 +198,9 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
   // 版本筛选 & 谱师筛选
   const aliases = useSongStore((state) => state.aliases)
   const versions = useSongStore((state) => state.versions)
+  const majorVersions = useMemo(() => {
+    return Array.from(new Map(versions.map((v) => [Math.floor(v.version / 100), v])).values())
+  }, [versions])
   const [versionFilter, setVersionFilter] = useState<number | 'ALL'>('ALL')
   const [designerFilter, setDesignerFilter] = useState('')
 
@@ -291,9 +294,9 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
     if (quickDiffFilter !== 'ALL') {
       result = result.filter(song => song.difficulty === quickDiffFilter)
     }
-    // 版本筛选
+    // 版本筛选（同一“大版本”内末位不同的更新包也纳入）
     if (versionFilter !== 'ALL') {
-      result = result.filter(song => song.version === versionFilter)
+      result = result.filter(song => Math.floor(song.version / 100) === Math.floor(versionFilter / 100))
     }
     // 谱师筛选
     if (designerFilter.trim()) {
@@ -416,7 +419,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
 
     // 半决赛/决赛：如果已生成 2+2，使用多玩家风格同步到 OBSDisplay
     // 自选歌曲显示对应玩家名，随机歌曲显示“随机1/随机2”
-    if (semiFinalSongs && targetStage && ['semi', 'final'].includes(targetStage)) {
+    if (semiFinalSongs && targetStage && ['semi', 'semiLoser', 'final'].includes(targetStage)) {
       broadcastSyncEvent('multiSelect', {
         songs: semiFinalSongs.map(s => ({
           playerId: s.playerId || `semi-${s.label}`,
@@ -949,13 +952,13 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                       <p className="text-white/40 text-[10px] font-rajdhani uppercase tracking-wider">同步到选手</p>
                     </div>
                     <div className="max-h-80 overflow-y-auto">
-                      {(['n216', '16to8', '8to4', 'semi', 'final'] as TournamentStage[]).map((stage) => {
+                      {(['n216', '16to8', '8to4', 'semi', 'semiLoser', 'final'] as TournamentStage[]).map((stage) => {
                         const players = getStagePlayers(stage)
                         if (players.length === 0) return null
                         const stageData = tournamentStages[stage]
                         const groups = stageData?.groups || []
                         const hasGroups = groups.length > 0
-                        const stageName = { n216: 'N进16', '16to8': '16进8', '8to4': '8进4', semi: '半决赛', final: '决赛' }[stage]
+                        const stageName = { n216: 'N进16', '16to8': '16进8', '8to4': '8进4', semi: '半决赛', semiLoser: '半决赛败者组', final: '决赛' }[stage]
                         const isCurrent = stage === tournamentCurrentStage
                         return (
                           <div key={stage} className="border-b border-white/10 last:border-b-0">
@@ -1126,16 +1129,16 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
             <div className="mb-4 p-4 rounded-3xl glass-panel border border-white/10 space-y-4">
               {/* 版本筛选 + 谱师筛选 */}
               <div className="flex flex-wrap items-center gap-3">
-                {versions.length > 0 && (
+                {majorVersions.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-white/60 font-rajdhani font-bold text-xs whitespace-nowrap">版本</span>
                     <select
-                      value={versionFilter}
+                      value={versionFilter === 'ALL' ? 'ALL' : (majorVersions.find(v => Math.floor(v.version / 100) === Math.floor(versionFilter / 100))?.version ?? versionFilter)}
                       onChange={(e) => setVersionFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
                       className="input-glass text-xs font-rajdhani py-1.5 px-2 rounded-lg min-w-[120px]"
                     >
                       <option value="ALL">全部版本</option>
-                      {versions.map(v => (
+                      {majorVersions.map(v => (
                         <option key={v.version} value={v.version}>{v.title}</option>
                       ))}
                     </select>
@@ -1354,7 +1357,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                     {/* 半决赛/决赛：抽卡结果预览 */}
                     {gachaSelectedSongs.length > 0 &&
                       (sendTargetStage || tournamentCurrentStage) &&
-                      ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                      ['semi', 'semiLoser', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-400/50 text-amber-200">
                           随机:
@@ -1386,6 +1389,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                         <option value="16to8">16进8</option>
                         <option value="8to4">8进4</option>
                         <option value="semi">半决赛</option>
+                        <option value="semiLoser">半决赛败者组</option>
                         <option value="final">决赛</option>
                       </select>
 
@@ -1409,7 +1413,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
 
                       {/* 半决赛/决赛 2+2 流程：先选 2 首自选，再抽卡 2 首，最后生成 */}
                       {(sendTargetStage || tournamentCurrentStage) &&
-                        ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                        ['semi', 'semiLoser', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                         <button
                           onClick={handleDrawGachaForSemi}
                           title="抽卡模式抽取 2 首随机谱面"
@@ -1427,7 +1431,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                       {/* 半决赛/决赛 2+2 生成（多人模式：2 人各 1 首自选） */}
                       {selectedCount >= 2 && gachaSelectedSongs.length >= 2 &&
                         (sendTargetStage || tournamentCurrentStage) &&
-                        ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                        ['semi', 'semiLoser', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                         <button
                           onClick={handleGenerateSemiFinalSongs}
                           title="生成自选1 + 随机1 + 自选2 + 随机2"
@@ -1438,21 +1442,6 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                         </button>
                       )}
 
-                      <button
-                        onClick={handleSendToOBS}
-                        disabled={sentToOBS}
-                        className={sentToOBS ? 'badge-success cursor-default press-down btn-shimmer' : 'btn-primary press-down btn-shimmer'}
-                      >
-                        <Send size={14} />
-                        {sentToOBS ? '已同步' : '同步到OBS'}
-                      </button>
-                      <button
-                        onClick={handleSendPlayersToTournament}
-                        className="btn-secondary press-down"
-                      >
-                        <Trophy size={14} />
-                        赛事
-                      </button>
                       <button
                         onClick={handleClearSelections}
                         className="btn-secondary text-xs px-3 py-2 press-down"
@@ -1693,7 +1682,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
               {/* 半决赛/决赛：抽卡结果预览 */}
               {gachaSelectedSongs.length > 0 &&
                 (sendTargetStage || tournamentCurrentStage) &&
-                ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                ['semi', 'semiLoser', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                 <p className="text-amber-200/70 text-xs truncate font-rajdhani mt-0.5">
                   随机: {gachaSelectedSongs.slice(-2).map((s, i) => `随机${i + 1}: ${s.name}`).join(' · ')}
                 </p>
@@ -1715,7 +1704,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
 
               {/* 半决赛/决赛：抽卡x2 + 生成 2+2 */}
               {(sendTargetStage || tournamentCurrentStage) &&
-                ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                ['semi', 'semiLoser', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                 <button
                   onClick={handleDrawGachaForSemi}
                   title="抽卡模式抽取 2 首随机谱面"
@@ -1732,7 +1721,7 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
 
               {singleSelectedSongs.length === 2 && gachaSelectedSongs.length >= 2 &&
                 (sendTargetStage || tournamentCurrentStage) &&
-                ['semi', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
+                ['semi', 'semiLoser', 'final'].includes((sendTargetStage || tournamentCurrentStage)!) && (
                 <button
                   onClick={handleGenerateSemiFinalSongs}
                   title="生成自选2 + 随机2"
@@ -1778,40 +1767,6 @@ export default function SongSelector({ onSwitchPage, initialMultiMode = false, i
                   </select>
                 ) : null
               })()}
-
-              {/* 同步到OBS */}
-              <button
-                onClick={() => {
-                  const targetStage = sendTargetStage || tournamentCurrentStage
-                  if (semiFinalSongs && targetStage && ['semi', 'final'].includes(targetStage)) {
-                    broadcastSyncEvent('multiSelect', {
-                      songs: semiFinalSongs.map(s => ({
-                        playerId: s.playerId || `semi-${s.label}`,
-                        playerName: s.playerName || s.label,
-                        song: s.song,
-                        label: s.label,
-                      })),
-                    })
-                  } else {
-                    broadcastSyncEvent('select', { songs: singleSelectedSongs })
-                  }
-                  setSentToOBS(true)
-                }}
-                disabled={sentToOBS}
-                className={sentToOBS ? 'badge-success cursor-default press-down btn-shimmer' : 'btn-primary press-down btn-shimmer'}
-              >
-                <Send size={14} />
-                {sentToOBS ? '已同步' : '同步到OBS'}
-              </button>
-
-              {/* 发送到赛事 */}
-              <button
-                onClick={() => handleSendToTournament(singleSelectedSongs)}
-                className="btn-secondary text-xs px-3 py-2 press-down"
-              >
-                <Trophy size={14} />
-                赛事
-              </button>
 
               {/* 清空 */}
               <button

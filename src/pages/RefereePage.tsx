@@ -7,6 +7,7 @@ import {
   type MatchGroup,
   type StageSong,
   type MatchGroupStatus,
+  type CustomStageConfig,
 } from '@/store/tournamentStore'
 import { useSongStore, type Song, type PlayerSelection, type Difficulty } from '@/store/songStore'
 import { subscribeSyncEvents, broadcastSyncEvent, useSyncStatus, reconnectSync } from '@/utils/tabSync'
@@ -85,10 +86,36 @@ const STAGE_RULES: Record<string, StageRule> = {
     selfCount: 2,
     description: '2 首选曲 + 2 首随机',
   },
+  semiLoser: {
+    type: 'two-plus-two',
+    label: '半决赛败者组',
+    randomPerGroup: 2,
+    selfCount: 2,
+    description: '2 首选曲 + 2 首随机',
+  },
 }
 
-function getStageRule(stage: string): StageRule | null {
-  return STAGE_RULES[stage] || null
+function getStageRule(stage: string, customStages?: CustomStageConfig[]): StageRule | null {
+  // 先查默认规则
+  const defaultRule = STAGE_RULES[stage]
+  if (defaultRule) return defaultRule
+
+  // 自定义阶段：根据 songCount 生成规则
+  if (customStages) {
+    const custom = customStages.find((c) => c.id === stage)
+    if (custom) {
+      const selfCount = Math.floor(custom.songCount / 2)
+      const randomCount = custom.songCount - selfCount
+      return {
+        type: randomCount > 0 ? 'two-plus-two' : 'four-self',
+        label: custom.name,
+        randomPerGroup: randomCount,
+        selfCount,
+        description: `${selfCount} 首选曲 + ${randomCount} 首随机`,
+      }
+    }
+  }
+  return null
 }
 
 function getDiffColor(diff: string) {
@@ -692,7 +719,8 @@ function StageSongList({ songs, title }: { songs: StageSong[]; title: string }) 
 }
 
 function StageInstructions({ stage, groupsCount }: { stage: string; groupsCount: number }) {
-  const rule = getStageRule(stage)
+  const { isCustomMode, customStages } = useTournamentStore()
+  const rule = getStageRule(stage, isCustomMode ? customStages : undefined)
   if (!rule) return null
 
   const steps: string[] = []
@@ -761,7 +789,7 @@ function StageInstructions({ stage, groupsCount }: { stage: string; groupsCount:
 export default function RefereePage() {
   const { showToast } = useToast()
   const tournament = useTournamentStore()
-  const { stages, currentStage, isTournamentStarted, updatePlayer, updatePlayerCheckIn, setGroupSongs, setStageSongs, setGroupCompleted, setGroupStatus } = tournament
+  const { stages, currentStage, isTournamentStarted, isCustomMode, customStages, updatePlayer, updatePlayerCheckIn, setGroupSongs, setStageSongs, setGroupCompleted, setGroupStatus } = tournament
 
   const playerSelections = useSongStore((state) => state.playerSelections)
   const setPlayerSelections = useSongStore((state) => state.setPlayerSelections)
@@ -898,7 +926,7 @@ export default function RefereePage() {
       return
     }
 
-    const currentRule = getStageRule(currentStage)
+    const currentRule = getStageRule(currentStage, isCustomMode ? customStages : undefined)
     const is2Plus2 = currentRule?.type === 'two-plus-two'
 
     let syncedCount = 0
@@ -1023,7 +1051,7 @@ export default function RefereePage() {
   // 按当前阶段规则自动同步用曲
   const syncByStageRule = useCallback(() => {
     if (!stageData) return
-    const rule = getStageRule(currentStage)
+    const rule = getStageRule(currentStage, isCustomMode ? customStages : undefined)
     if (!rule) {
       showToast('当前阶段未配置规则，请使用手动同步', 'info')
       return
@@ -1312,7 +1340,7 @@ export default function RefereePage() {
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="font-rajdhani text-[11px] uppercase tracking-wider text-white/40">{stageLabel}</span>
                   {(() => {
-                    const rule = getStageRule(currentStage)
+                    const rule = getStageRule(currentStage, isCustomMode ? customStages : undefined)
                     if (!rule) return null
                     const isRandomPerGroup = rule.type === 'random-per-group' && groups.length > 0
                     const nextGroup = isRandomPerGroup ? groups[ruleSyncGroupIndex % groups.length] : null
@@ -1335,7 +1363,7 @@ export default function RefereePage() {
             <div className="flex items-center gap-2 flex-wrap">
               <ConnectionBadge />
               {(() => {
-                const rule = getStageRule(currentStage)
+                const rule = getStageRule(currentStage, isCustomMode ? customStages : undefined)
                 if (rule?.type === 'four-self') return null
                 return (
                   <button onClick={syncByStageRule} className="btn-primary press-down btn-shimmer">
@@ -1423,7 +1451,7 @@ export default function RefereePage() {
               <h2 className="text-lg font-bold text-white">选曲与随机曲同步</h2>
             </div>
             {(() => {
-              const rule = getStageRule(currentStage)
+              const rule = getStageRule(currentStage, isCustomMode ? customStages : undefined)
               if (!rule) return null
               return (
                 <div className="flex items-center gap-2">

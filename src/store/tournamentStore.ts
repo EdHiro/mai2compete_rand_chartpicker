@@ -2,28 +2,56 @@ import { create } from 'zustand'
 import { broadcastSyncEvent, subscribeSyncEvents } from '@/utils/tabSync'
 import type { Song } from '@/store/songStore'
 
-// 赛事阶段
-export type TournamentStage = 'n216' | '16to8' | '8to4' | 'semi' | 'final'
+// 赛事阶段（支持自定义阶段 ID）
+export type TournamentStage = string
 
-// 阶段显示名称
-export const STAGE_LABELS: Record<TournamentStage, string> = {
+// 默认阶段显示名称
+export const STAGE_LABELS: Record<string, string> = {
   n216: 'N进16',
   '16to8': '16进8',
   '8to4': '8进4',
   semi: '半决赛',
+  semiLoser: '半决赛败者组',
   final: '决赛',
 }
 
-// 阶段排序（用于晋级逻辑）
-export const STAGE_ORDER: TournamentStage[] = ['n216', '16to8', '8to4', 'semi', 'final']
+// 默认阶段排序
+export const DEFAULT_STAGE_ORDER: string[] = ['n216', '16to8', '8to4', 'semi', 'semiLoser', 'final']
 
-// 每个阶段晋级人数
-export const STAGE_ADVANCE_COUNT: Record<TournamentStage, number> = {
+// 默认阶段晋级人数
+const DEFAULT_ADVANCE_COUNT: Record<string, number> = {
   n216: 16,
   '16to8': 8,
   '8to4': 4,
   semi: 2,
+  semiLoser: 1,
   final: 1,
+}
+
+// 获取阶段显示名称
+export function getStageLabel(stage: string, customStages?: CustomStageConfig[]): string {
+  if (customStages) {
+    const custom = customStages.find((c) => c.id === stage)
+    if (custom) return custom.name
+  }
+  return STAGE_LABELS[stage] || stage
+}
+
+// 获取阶段顺序
+export function getStageOrder(isCustomMode: boolean, customStages?: CustomStageConfig[]): string[] {
+  if (isCustomMode && customStages && customStages.length > 0) {
+    return customStages.map((c) => c.id)
+  }
+  return DEFAULT_STAGE_ORDER
+}
+
+// 获取阶段晋级人数
+export function getStageAdvanceCount(stage: string, customStages?: CustomStageConfig[]): number {
+  if (customStages) {
+    const custom = customStages.find((c) => c.id === stage)
+    if (custom) return custom.advanceCount
+  }
+  return DEFAULT_ADVANCE_COUNT[stage] ?? 0
 }
 
 // 自定义阶段配置
@@ -32,6 +60,60 @@ export interface CustomStageConfig {
   name: string
   playerCount: number
   advanceCount: number
+  rankingMethod: 'global' | 'group'  // 排名方式：全局排名 / 分组排名
+  groupCount: number                  // 分组数量（分组排名时有效）
+  advancePerGroup: number            // 每组晋级人数（分组排名时有效）
+  songCount: number                  // 该阶段歌曲总数（如 4 表示 2+2）
+  loserStageId?: string             // 败者组阶段 ID（该阶段淘汰选手进入此阶段）
+}
+
+// 默认阶段歌曲数
+const DEFAULT_SONG_COUNT: Record<string, number> = {
+  n216: 4,
+  '16to8': 4,
+  '8to4': 4,
+  semi: 4,
+  semiLoser: 4,
+  final: 4,
+}
+
+// 默认败者组路由
+const DEFAULT_LOSER_STAGE_MAP: Record<string, string> = {
+  semi: 'semiLoser',
+}
+
+// 获取阶段歌曲数
+export function getStageSongCount(stage: string, customStages?: CustomStageConfig[]): number {
+  if (customStages) {
+    const custom = customStages.find((c) => c.id === stage)
+    if (custom) return custom.songCount
+  }
+  return DEFAULT_SONG_COUNT[stage] ?? 4
+}
+
+// 获取败者组阶段 ID
+export function getLoserStageId(stage: string, isCustomMode: boolean, customStages?: CustomStageConfig[]): string | undefined {
+  if (isCustomMode && customStages) {
+    return customStages.find((c) => c.id === stage)?.loserStageId
+  }
+  return DEFAULT_LOSER_STAGE_MAP[stage]
+}
+
+// 迁移旧版 CustomStageConfig（补充缺失字段的默认值）
+export function migrateCustomStageConfig(
+  config: Partial<CustomStageConfig> & { id: string; name: string; playerCount: number; advanceCount: number }
+): CustomStageConfig {
+  return {
+    id: config.id,
+    name: config.name,
+    playerCount: config.playerCount,
+    advanceCount: config.advanceCount,
+    rankingMethod: config.rankingMethod || 'global',
+    groupCount: config.groupCount || 0,
+    advancePerGroup: config.advancePerGroup || 1,
+    songCount: config.songCount || 4,
+    ...(config.loserStageId ? { loserStageId: config.loserStageId } : {}),
+  }
 }
 
 // 赛事模板
@@ -55,6 +137,7 @@ export interface TournamentPlayer {
   eliminated: boolean // 是否已淘汰
   seed?: number // 种子排名（1=头号种子）
   checkedIn: boolean // 是否已签到
+  rating: number | null // 选手评级（用于相似 rating 分组）
 }
 
 // 阶段分配的歌曲
@@ -78,7 +161,7 @@ export interface MatchGroup {
 
 // 赛事阶段数据
 export interface TournamentStageData {
-  stage: TournamentStage
+  stage: string
   players: TournamentPlayer[]
   locked: boolean // 是否已锁定（锁定后不能再修改分数）
   songs: StageSong[] // 阶段通用歌曲（所有人共享）
@@ -89,14 +172,15 @@ export interface TournamentStageData {
 export interface RankingSnapshot {
   current: TournamentStageData
   next: TournamentStageData | null
+  next2?: TournamentStageData | null // 半决赛同时影响决赛与半决赛败者组
 }
 
 // 赛事历史记录
 export interface TournamentHistoryRecord {
   id: string
   date: string
-  stages: Record<TournamentStage, TournamentStageData>
-  currentStage: TournamentStage
+  stages: Record<string, TournamentStageData>
+  currentStage: string
   champion: TournamentPlayer | null
   createdAt: string
 }
@@ -110,7 +194,7 @@ export interface TournamentHistoryListItem {
 }
 
 export interface TournamentState {
-  stages: Record<TournamentStage, TournamentStageData>
+  stages: Record<string, TournamentStageData>
   currentStage: TournamentStage
   isTournamentStarted: boolean
 
@@ -119,8 +203,8 @@ export interface TournamentState {
   customStages: CustomStageConfig[]
 
   // 排名预览与快照
-  previewRankings: Record<TournamentStage, TournamentPlayer[] | null>
-  rankingSnapshots: Record<TournamentStage, RankingSnapshot | null>
+  previewRankings: Record<string, TournamentPlayer[] | null>
+  rankingSnapshots: Record<string, RankingSnapshot | null>
 
   // Timer state
   timerRunning: boolean
@@ -204,6 +288,7 @@ export interface TournamentState {
   // 自定义赛制
   setCustomMode: (enabled: boolean) => void
   setCustomStages: (configs: CustomStageConfig[]) => void
+  updateFutureStages: (configs: CustomStageConfig[]) => void  // 比赛中途修改未来阶段
 
   // 种子排名
   setPlayerSeed: (stage: TournamentStage | string, playerId: string, seed: number | null) => void
@@ -228,18 +313,23 @@ export interface TournamentState {
   createGroups16to8: () => { success: boolean; message?: string }
   shuffleGroups8to4: () => { success: boolean; message?: string }
   createGroupsSemi: () => { success: boolean; message?: string }
+  createGroupsSemiLoser: () => { success: boolean; message?: string }
+  createGroupsByRating: (stage: TournamentStage, groupSize: number) => { success: boolean; message?: string }
   setGroupSongs: (stage: TournamentStage, groupId: string, songs: StageSong[]) => void
   addGroupSong: (stage: TournamentStage, groupId: string, song: Song | null, label: string) => void
   removeGroupSong: (stage: TournamentStage, groupId: string, songId: string) => void
   setGroupCompleted: (stage: TournamentStage, groupId: string, completed: boolean) => void
   setGroupStatus: (stage: TournamentStage, groupId: string, status: MatchGroupStatus) => void
+
+  // 选手评级
+  updatePlayerRating: (stage: TournamentStage, playerId: string, rating: number | null) => void
 }
 
 function generateId(): string {
   return `player-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-function createEmptyStageData(stage: TournamentStage): TournamentStageData {
+function createEmptyStageData(stage: string): TournamentStageData {
   return {
     stage,
     players: [],
@@ -304,13 +394,24 @@ function loadFromLocalStorage(): Partial<TournamentState> | null {
     const data = JSON.parse(raw)
     // Validate basic structure
     if (data && data.stages && data.currentStage) {
+      const isCustom = data.isCustomMode || false
+      const customStages: CustomStageConfig[] = (data.customStages || []).map(migrateCustomStageConfig)
+      const stageOrder = getStageOrder(isCustom, customStages)
+
       // Migrate old stage data to new structure (songs/groups fields)
-      const migratedStages: Record<TournamentStage, TournamentStageData> = {
-        n216: migrateStageData(data.stages.n216),
-        '16to8': migrateStageData(data.stages['16to8']),
-        '8to4': migrateStageData(data.stages['8to4']),
-        semi: migrateStageData(data.stages.semi),
-        final: migrateStageData(data.stages.final),
+      const migratedStages: Record<string, TournamentStageData> = {}
+      for (const stageId of stageOrder) {
+        if (data.stages[stageId]) {
+          migratedStages[stageId] = migrateStageData(data.stages[stageId])
+        } else {
+          migratedStages[stageId] = createEmptyStageData(stageId)
+        }
+      }
+      // Also include any stages in data that aren't in the stage order (backward compat)
+      for (const key of Object.keys(data.stages)) {
+        if (!migratedStages[key]) {
+          migratedStages[key] = migrateStageData(data.stages[key])
+        }
       }
       return { ...data, stages: migratedStages }
     }
@@ -333,23 +434,23 @@ function saveToLocalStorage(state: TournamentState) {
   }
 }
 
-const defaultStages = {
-  n216: createEmptyStageData('n216'),
-  '16to8': createEmptyStageData('16to8'),
-  '8to4': createEmptyStageData('8to4'),
-  semi: createEmptyStageData('semi'),
-  final: createEmptyStageData('final'),
+function buildDefaultStages(isCustomMode: boolean, customStages: CustomStageConfig[]): Record<string, TournamentStageData> {
+  const stageOrder = getStageOrder(isCustomMode, customStages)
+  const stages: Record<string, TournamentStageData> = {}
+  for (const stageId of stageOrder) {
+    stages[stageId] = createEmptyStageData(stageId)
+  }
+  return stages
 }
 
-function getAdvanceCountForStage(stage: TournamentStage, customStages: CustomStageConfig[]): number {
-  const custom = customStages.find((c) => c.id === stage)
-  if (custom) return custom.advanceCount
-  return STAGE_ADVANCE_COUNT[stage] ?? 0
+function getAdvanceCountForStage(stage: string, customStages: CustomStageConfig[]): number {
+  return getStageAdvanceCount(stage, customStages)
 }
 
 function computeStageRankings(
   stageData: TournamentStageData,
-  advanceCount: number
+  advanceCount: number,
+  customConfig?: CustomStageConfig
 ): { players: TournamentPlayer[]; advancedPlayers: TournamentPlayer[] } {
   const parseDxScore = (dx: string): number => {
     const num = parseFloat(dx)
@@ -366,14 +467,9 @@ function computeStageRankings(
   let advancedPlayers: TournamentPlayer[] = []
 
   if (stageData.groups.length > 0) {
-    // 按组计算晋级（保留分组晋级逻辑）
-    const groupAdvanceMap: Record<string, number> = {
-      '16to8': 1,
-      '8to4': 2,
-      semi: 1,
-      final: 1,
-    }
-    const perGroupAdvance = groupAdvanceMap[stageData.stage] ?? 1
+    // 按组计算晋级：使用自定义配置的 perGroupAdvance，或按比例分配
+    const perGroupAdvance = customConfig?.advancePerGroup
+      ?? Math.max(1, Math.floor(advanceCount / stageData.groups.length))
 
     players = stageData.players.map((p) => ({ ...p, rank: null, advanced: false, eliminated: false }))
 
@@ -448,6 +544,16 @@ function computeStageRankings(
     advancedPlayers = players.filter((p) => p.advanced)
   }
 
+  // 半决赛败者组固定排名：胜者第 3 名（季军），败者第 4 名
+  if (stageData.stage === 'semiLoser') {
+    players = players.map((p) =>
+      p.advanced
+        ? { ...p, rank: 3 }
+        : { ...p, rank: 4, eliminated: true }
+    )
+    advancedPlayers = players.filter((p) => p.advanced)
+  }
+
   return { players, advancedPlayers }
 }
 
@@ -470,35 +576,73 @@ function buildRankingStateUpdate(
   }
 
   // 自动将晋级选手复制到下一阶段
-  const stageIdx = STAGE_ORDER.indexOf(stage)
-  const nextStage = STAGE_ORDER[stageIdx + 1]
+  const stageOrder = getStageOrder(state.isCustomMode, state.customStages)
+  const stageIdx = stageOrder.indexOf(stage)
+  const nextStage = stageOrder[stageIdx + 1]
   const stagesUpdate: Record<TournamentStage, TournamentStageData> = { ...state.stages }
 
   stagesUpdate[stage] = { ...stagesUpdate[stage], players, locked: true }
 
-  if (nextStage && advancedPlayers.length > 0) {
-    const nextPlayers = advancedPlayers.map((p) => ({
-      ...p,
-      score: null,
-      dxScore: '',
-      rank: null,
-      advanced: false,
-      eliminated: false,
-    }))
-    const nextGroups: MatchGroup[] =
-      nextStage === 'final' && nextPlayers.length === 2
-        ? [
-            {
-              id: `final-${Date.now()}`,
-              name: '决赛',
-              playerIds: nextPlayers.map((p) => p.id),
-              songs: [],
-              completed: false,
-              status: 'pending',
-            },
-          ]
-        : []
-    stagesUpdate[nextStage] = { ...stagesUpdate[nextStage], players: nextPlayers, groups: nextGroups }
+  const resetPlayerForNextStage = (p: TournamentPlayer): TournamentPlayer => ({
+    ...p,
+    score: null,
+    dxScore: '',
+    rank: null,
+    advanced: false,
+    eliminated: false,
+    rating: null,
+  })
+
+  const buildGroupForStage = (stagePlayers: TournamentPlayer[], stageId: string): MatchGroup[] =>
+    stagePlayers.length >= 2
+      ? [
+          {
+            id: `${stageId}-${Date.now()}`,
+            name: getStageLabel(stageId, state.customStages),
+            playerIds: stagePlayers.map((p) => p.id),
+            songs: [],
+            completed: false,
+            status: 'pending',
+          },
+        ]
+      : []
+
+  // 通用晋级：将晋级选手复制到下一阶段
+  if (!state.isCustomMode && stage === 'semi') {
+    // 半决赛特殊：胜者晋级决赛（跳过 semiLoser）
+    const finalPlayers = advancedPlayers.map(resetPlayerForNextStage)
+    stagesUpdate.final = {
+      ...stagesUpdate.final,
+      players: finalPlayers,
+      groups: buildGroupForStage(finalPlayers, 'final'),
+    }
+  } else if (nextStage && advancedPlayers.length > 0) {
+    const nextPlayers = advancedPlayers.map(resetPlayerForNextStage)
+    const nextGroups = buildGroupForStage(nextPlayers, nextStage)
+    stagesUpdate[nextStage] = {
+      ...stagesUpdate[nextStage],
+      players: nextPlayers,
+      groups: nextGroups,
+    }
+  }
+
+  // 败者组：将淘汰选手复制到败者组阶段
+  const loserStageId = getLoserStageId(stage, state.isCustomMode, state.customStages)
+  if (loserStageId && stagesUpdate[loserStageId]) {
+    const eliminatedPlayers = players.filter((p) => !p.advanced && p.score !== null)
+    if (eliminatedPlayers.length > 0) {
+      const loserPlayers = eliminatedPlayers.map(resetPlayerForNextStage)
+      stagesUpdate[loserStageId] = {
+        ...stagesUpdate[loserStageId],
+        players: loserPlayers,
+        groups: [],
+      }
+    }
+  }
+
+  // 默认模式：半决赛败者组不晋级到决赛
+  if (!state.isCustomMode && stage === 'semiLoser') {
+    // 半决赛败者组：胜者获得季军，不进入决赛，仅锁定自身
   }
 
   return { stages: stagesUpdate }
@@ -506,28 +650,43 @@ function buildRankingStateUpdate(
 
 const persisted = loadFromLocalStorage()
 
+const defaultStages = buildDefaultStages(
+  persisted?.isCustomMode || false,
+  persisted?.customStages || []
+)
+
+// 确保 stages 始终包含所有 stageOrder 中的阶段（防止旧数据缺失 key 导致崩溃）
+function ensureAllStages(
+  stages: Record<string, TournamentStageData>,
+  isCustomMode: boolean,
+  customStages: CustomStageConfig[]
+): Record<string, TournamentStageData> {
+  const stageOrder = getStageOrder(isCustomMode, customStages)
+  const result = { ...stages }
+  for (const stageId of stageOrder) {
+    if (!result[stageId]) {
+      result[stageId] = createEmptyStageData(stageId)
+    }
+  }
+  return result
+}
+
+const initialStages = ensureAllStages(
+  (persisted?.stages as Record<string, TournamentStageData>) || defaultStages,
+  persisted?.isCustomMode || false,
+  persisted?.customStages || []
+)
+
 export const useTournamentStore = create<TournamentState>((set, get) => ({
-  stages: (persisted?.stages as Record<TournamentStage, TournamentStageData>) || defaultStages,
-  currentStage: (persisted?.currentStage as TournamentStage) || 'n216',
+  stages: initialStages,
+  currentStage: (persisted?.currentStage as string) || 'n216',
   isTournamentStarted: persisted?.isTournamentStarted || false,
 
   isCustomMode: persisted?.isCustomMode || false,
   customStages: persisted?.customStages || [],
 
-  previewRankings: {
-    n216: null,
-    '16to8': null,
-    '8to4': null,
-    semi: null,
-    final: null,
-  },
-  rankingSnapshots: {
-    n216: null,
-    '16to8': null,
-    '8to4': null,
-    semi: null,
-    final: null,
-  },
+  previewRankings: persisted?.previewRankings || {},
+  rankingSnapshots: persisted?.rankingSnapshots || {},
 
   timerRunning: persisted?.timerRunning || false,
   timerSeconds: persisted?.timerSeconds || 0,
@@ -555,6 +714,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
               advanced: false,
               eliminated: false,
               checkedIn: false,
+              rating: null,
               ...(storedSeed ? { seed: storedSeed } : {}),
             }
       })
@@ -631,6 +791,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       advanced: false,
       eliminated: false,
       checkedIn: false,
+      rating: null,
     }
     set((state) => {
       const stageData = state.stages[stage as TournamentStage]
@@ -669,6 +830,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
           advanced: false,
           eliminated: false,
           checkedIn: false,
+          rating: null,
           ...(storedSeed ? { seed: storedSeed } : {}),
         })
         existingNames.add(trimmed)
@@ -711,7 +873,8 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       if (stageData.locked) return state
 
       const advanceCount = getAdvanceCountForStage(stage, state.customStages)
-      const { players } = computeStageRankings(stageData, advanceCount)
+      const customConfig = state.customStages.find((c) => c.id === stage)
+      const { players } = computeStageRankings(stageData, advanceCount, customConfig)
       return {
         previewRankings: { ...state.previewRankings, [stage]: players },
       }
@@ -731,6 +894,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
       const advanceCount = getAdvanceCountForStage(stage, state.customStages)
       const preview = state.previewRankings[stage]
+      const customConfig = state.customStages.find((c) => c.id === stage)
 
       let players: TournamentPlayer[]
       let advancedPlayers: TournamentPlayer[]
@@ -739,17 +903,21 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         players = preview
         advancedPlayers = preview.filter((p) => p.advanced)
       } else {
-        const result = computeStageRankings(stageData, advanceCount)
+        const result = computeStageRankings(stageData, advanceCount, customConfig)
         players = result.players
         advancedPlayers = result.advancedPlayers
       }
 
       // 保存快照（用于撤销）
-      const stageIdx = STAGE_ORDER.indexOf(stage)
-      const nextStage = STAGE_ORDER[stageIdx + 1]
+      const stageOrder = getStageOrder(state.isCustomMode, state.customStages)
+      const stageIdx = stageOrder.indexOf(stage)
+      const nextStage = stageOrder[stageIdx + 1]
       const snapshot: RankingSnapshot = {
         current: { ...stageData },
         next: nextStage ? { ...state.stages[nextStage] } : null,
+      }
+      if (!state.isCustomMode && stage === 'semi') {
+        snapshot.next2 = { ...state.stages.final }
       }
 
       return {
@@ -766,10 +934,14 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       if (!snapshot) return state
 
       const newStages = { ...state.stages, [stage]: snapshot.current }
-      const stageIdx = STAGE_ORDER.indexOf(stage)
-      const nextStage = STAGE_ORDER[stageIdx + 1]
+      const stageOrder = getStageOrder(state.isCustomMode, state.customStages)
+      const stageIdx = stageOrder.indexOf(stage)
+      const nextStage = stageOrder[stageIdx + 1]
       if (snapshot.next && nextStage) {
         newStages[nextStage] = snapshot.next
+      }
+      if (!state.isCustomMode && stage === 'semi' && snapshot.next2) {
+        newStages.final = snapshot.next2
       }
 
       return {
@@ -786,14 +958,19 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       if (stageData.locked) return state
 
       const advanceCount = getAdvanceCountForStage(stage, state.customStages)
-      const { players, advancedPlayers } = computeStageRankings(stageData, advanceCount)
+      const customConfig = state.customStages.find((c) => c.id === stage)
+      const { players, advancedPlayers } = computeStageRankings(stageData, advanceCount, customConfig)
 
       // 保存快照（用于撤销）
-      const stageIdx = STAGE_ORDER.indexOf(stage)
-      const nextStage = STAGE_ORDER[stageIdx + 1]
+      const stageOrder = getStageOrder(state.isCustomMode, state.customStages)
+      const stageIdx = stageOrder.indexOf(stage)
+      const nextStage = stageOrder[stageIdx + 1]
       const snapshot: RankingSnapshot = {
         current: { ...stageData },
         next: nextStage ? { ...state.stages[nextStage] } : null,
+      }
+      if (!state.isCustomMode && stage === 'semi') {
+        snapshot.next2 = { ...state.stages.final }
       }
 
       return {
@@ -806,11 +983,13 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   resetTournament: () => {
     set({
-      stages: { ...defaultStages },
-      currentStage: 'n216',
+      stages: buildDefaultStages(false, []),
+      currentStage: DEFAULT_STAGE_ORDER[0],
       isTournamentStarted: false,
       isCustomMode: false,
       customStages: [],
+      previewRankings: {},
+      rankingSnapshots: {},
       timerRunning: false,
       timerSeconds: 0,
       timerLabel: '',
@@ -1124,6 +1303,135 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     return result
   },
 
+  createGroupsSemiLoser: () => {
+    const result = { success: false, message: '' }
+    set((state) => {
+      const stageData = state.stages['semiLoser']
+      if (stageData.players.length === 0) {
+        result.message = '半决赛败者组没有选手，请先完成半决赛排名'
+        return state
+      }
+      if (stageData.players.length !== 2) {
+        result.message = `半决赛败者组需要 2 名选手，当前有 ${stageData.players.length} 名`
+        return state
+      }
+
+      const players = [...stageData.players].sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
+      const groups: MatchGroup[] = [
+        {
+          id: 'group-semiloser-1',
+          name: `${players[0].name} vs ${players[1].name}`,
+          playerIds: [players[0].id, players[1].id],
+          songs: [],
+        },
+      ]
+
+      result.success = true
+      result.message = '已生成半决赛败者组对阵'
+      return {
+        stages: {
+          ...state.stages,
+          semiLoser: { ...stageData, groups },
+        },
+      }
+    })
+    return result
+  },
+
+  createGroupsByRating: (stage, groupSize) => {
+    const result = { success: false, message: '' }
+    set((state) => {
+      const stageData = state.stages[stage]
+      if (!stageData) {
+        result.message = '阶段不存在'
+        return state
+      }
+      if (stageData.locked) {
+        result.message = '阶段已锁定，无法修改分组'
+        return state
+      }
+      if (stageData.players.length === 0) {
+        result.message = '当前阶段没有选手'
+        return state
+      }
+      const ratedPlayers = stageData.players.filter((p) => p.rating !== null && p.rating !== undefined)
+      if (ratedPlayers.length < 2) {
+        result.message = '至少需要 2 名有 rating 的选手才能分组'
+        return state
+      }
+      if (groupSize < 2) {
+        result.message = '每组至少需要 2 人'
+        return state
+      }
+
+      // 按 rating 升序排列
+      const sorted = [...ratedPlayers].sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0))
+      const groups: MatchGroup[] = []
+      let groupIdx = 1
+
+      for (let i = 0; i < sorted.length; i += groupSize) {
+        const groupPlayers = sorted.slice(i, i + groupSize)
+        if (groupPlayers.length < 2) {
+          // 不足一组的选手合并到最后一组
+          if (groups.length > 0) {
+            const lastGroup = groups[groups.length - 1]
+            lastGroup.playerIds.push(...groupPlayers.map((p) => p.id))
+            lastGroup.name = `第${groups.length}组 (${lastGroup.playerIds.length}人)`
+          }
+          break
+        }
+        const names = groupPlayers.map((p) => p.name).join(' vs ')
+        groups.push({
+          id: `group-rating-${stage}-${groupIdx}`,
+          name: `第${groupIdx}组 (${names})`,
+          playerIds: groupPlayers.map((p) => p.id),
+          songs: [],
+        })
+        groupIdx++
+      }
+
+      // 未设置 rating 的选手单独成组（放在末尾）
+      const unratedPlayers = stageData.players.filter((p) => p.rating === null || p.rating === undefined)
+      if (unratedPlayers.length > 0) {
+        const unratedNames = unratedPlayers.map((p) => p.name).join(' vs ')
+        groups.push({
+          id: `group-rating-${stage}-unrated`,
+          name: `未评级 (${unratedNames})`,
+          playerIds: unratedPlayers.map((p) => p.id),
+          songs: [],
+        })
+      }
+
+      result.success = true
+      result.message = `已按 rating 生成 ${groups.length} 组（${groupSize}人/组，${ratedPlayers.length}人有评级${
+        unratedPlayers.length > 0 ? `，${unratedPlayers.length}人无评级` : ''
+      }）`
+      return {
+        stages: {
+          ...state.stages,
+          [stage]: { ...stageData, groups },
+        },
+      }
+    })
+    return result
+  },
+
+  updatePlayerRating: (stage, playerId, rating) => {
+    set((state) => {
+      const stageData = state.stages[stage]
+      if (!stageData || stageData.locked) return state
+      const players = stageData.players.map((p) =>
+        p.id === playerId ? { ...p, rating } : p
+      )
+      return {
+        stages: {
+          ...state.stages,
+          [stage]: { ...stageData, players },
+        },
+      }
+    })
+  },
+
   setGroupSongs: (stage, groupId, songs) => {
     set((state) => {
       const stageData = state.stages[stage]
@@ -1324,6 +1632,26 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     set({ customStages: configs })
   },
 
+  updateFutureStages: (configs) => {
+    set((state) => {
+      if (!state.isTournamentStarted) {
+        // 赛事未开始，直接全部更新
+        return { customStages: configs }
+      }
+      // 比赛中途：只更新当前阶段之后的阶段
+      const stageOrder = getStageOrder(state.isCustomMode, state.customStages)
+      const currentIdx = stageOrder.indexOf(state.currentStage)
+      const updatedStages = state.customStages.map((s, idx) => {
+        if (idx > currentIdx) {
+          const updated = configs.find((c) => c.id === s.id)
+          if (updated) return updated
+        }
+        return s
+      })
+      return { customStages: updatedStages }
+    })
+  },
+
   // ========== 种子排名 ==========
 
   setPlayerSeed: (stage, playerId, seed) => {
@@ -1405,7 +1733,10 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     if (typeof window === 'undefined') return
     try {
       const { customStages, isCustomMode, stages } = get()
-      const n216PlayerNames = stages.n216.players.map((p) => p.name)
+      const stageOrder = getStageOrder(isCustomMode, customStages)
+      const firstStage = stageOrder[0] || 'n216'
+      const firstStageData = stages[firstStage]
+      const playerNames = firstStageData ? firstStageData.players.map((p) => p.name) : []
 
       const template: TournamentTemplate = {
         id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1413,7 +1744,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
         createdAt: new Date().toISOString(),
         customStages,
         isCustomMode,
-        n216PlayerNames,
+        n216PlayerNames: playerNames,
       }
 
       const existingRaw = localStorage.getItem(TEMPLATE_STORAGE_KEY)
@@ -1439,6 +1770,9 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
       const storedSeeds: Record<string, number> = seedData ? JSON.parse(seedData) : {}
 
       // 根据模板恢复选手名单（自动应用历史种子）
+      const migratedCustomStages = template.customStages.map(migrateCustomStageConfig)
+      const stageOrder = getStageOrder(template.isCustomMode, migratedCustomStages)
+      const firstStage = stageOrder[0] || 'n216'
       const n216Players = template.n216PlayerNames.map((name) => {
         const storedSeed = storedSeeds[name]
         return {
@@ -1450,18 +1784,20 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
           advanced: false,
           eliminated: false,
           checkedIn: false,
+          rating: null,
           ...(storedSeed ? { seed: storedSeed } : {}),
         }
       })
 
+      const newStages = buildDefaultStages(template.isCustomMode, migratedCustomStages)
       set({
         isCustomMode: template.isCustomMode,
-        customStages: template.customStages,
+        customStages: migratedCustomStages,
         stages: {
-          ...defaultStages,
-          n216: { ...defaultStages.n216, players: n216Players },
+          ...newStages,
+          [firstStage]: { ...newStages[firstStage], players: n216Players },
         },
-        currentStage: 'n216',
+        currentStage: firstStage,
         isTournamentStarted: false,
         timerRunning: false,
         timerSeconds: 0,
@@ -1611,9 +1947,10 @@ if (typeof window !== 'undefined') {
         isApplyingRemoteUpdate = false
       } else if (payload.type === 'reset') {
         isApplyingRemoteUpdate = true
+        const resetStages = buildDefaultStages(false, [])
         useTournamentStore.setState({
-          stages: { ...defaultStages },
-          currentStage: 'n216',
+          stages: { ...resetStages },
+          currentStage: DEFAULT_STAGE_ORDER[0],
           isTournamentStarted: false,
           isCustomMode: false,
           customStages: [],

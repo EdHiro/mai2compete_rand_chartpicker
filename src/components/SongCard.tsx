@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import SongCardContent from './SongCardContent'
-import type { Song, Difficulty } from '@/store/songStore'
+import type { Song } from '@/store/songStore'
 import { History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -9,28 +9,9 @@ interface SongCardProps {
   isDrawn?: boolean
 }
 
-// 难度色外发光（hover 时显现）
-const GLOW_COLORS: Record<Difficulty, string> = {
-  BASIC: 'rgba(34, 197, 94, 0.55)',
-  ADVANCED: 'rgba(234, 179, 8, 0.55)',
-  EXPERT: 'rgba(255, 68, 136, 0.6)',
-  MASTER: 'rgba(153, 68, 255, 0.65)',
-  'Re:MASTER': 'rgba(255, 170, 0, 0.7)',
-  UTAGE: 'rgba(34, 211, 238, 0.65)',
-}
-
 const SongCard = memo(({ song, isDrawn = false }: SongCardProps) => {
-  const glowColor = GLOW_COLORS[song.difficulty]
-
   return (
-    <div className="group relative w-[300px] h-[520px] transition-transform duration-300 hover:-translate-y-2 hover:z-20">
-      {/* hover 难度色外发光环 */}
-      <div
-        aria-hidden
-        className="absolute -inset-3 rounded-[36px] opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none"
-        style={{ boxShadow: `0 0 50px 4px ${glowColor}` }}
-      />
-
+ <div className="group relative w-[400px] h-[580px] transition-transform duration-300 hover:-translate-y-2 hover:z-20">
       {/* 卡片主体 */}
       <div
         className={cn(

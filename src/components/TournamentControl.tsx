@@ -5,8 +5,9 @@ import {
   type CustomStageConfig,
   type TournamentTemplate,
   STAGE_LABELS,
-  STAGE_ORDER,
-  STAGE_ADVANCE_COUNT,
+  getStageOrder,
+  getStageAdvanceCount,
+  getStageSongCount,
 } from '@/store/tournamentStore'
 import { useToast } from '@/components/Toast'
 import { QRCodeSVG } from 'qrcode.react'
@@ -53,6 +54,7 @@ export default function TournamentControl() {
     resetTimer,
     setCustomMode,
     setCustomStages,
+    updateFutureStages,
     setPlayerSeed,
     applySeeding,
     autoUpdateSeedsFromRankings,
@@ -64,6 +66,9 @@ export default function TournamentControl() {
     createGroups16to8,
     shuffleGroups8to4,
     createGroupsSemi,
+    createGroupsSemiLoser,
+    createGroupsByRating,
+    updatePlayerRating,
   } = useTournamentStore()
 
   const [playerNameInput, setPlayerNameInput] = useState('')
@@ -167,11 +172,12 @@ export default function TournamentControl() {
             })
             // 自动标记已存在的选手为已签到
             const normalized = name.trim().toLowerCase()
-            const player = stages.n216.players.find(
+            const firstStage = stageOrder[0] || 'n216'
+            const player = stages[firstStage]?.players.find(
               (p) => p.name.trim().toLowerCase() === normalized
             )
             if (player) {
-              updatePlayerCheckIn('n216', player.id, true)
+              updatePlayerCheckIn(firstStage, player.id, true)
             }
           }
         } catch {
@@ -201,12 +207,13 @@ export default function TournamentControl() {
   }, [checkinNames])
 
   const handleStartTournament = () => {
-    const n216Players = stages.n216.players
-    if (n216Players.length === 0) {
-      showToast('请至少为 N进16 添加选手', 'error')
+    const firstStage = stageOrder[0] || 'n216'
+    const firstStagePlayers = stages[firstStage]?.players ?? []
+    if (firstStagePlayers.length === 0) {
+      showToast(`请至少为 ${getStageLabel(firstStage)} 添加选手`, 'error')
       return
     }
-    startTournament(['n216'])
+    startTournament(stageOrder)
     showToast('赛事已开始！', 'success')
   }
 
@@ -269,8 +276,9 @@ export default function TournamentControl() {
   }
 
   const handleNextStage = () => {
-    const stageIdx = STAGE_ORDER.indexOf(currentStage)
-    const nextStage = STAGE_ORDER[stageIdx + 1]
+    const stageOrder = getStageOrder(isCustomMode, customStages)
+    const stageIdx = stageOrder.indexOf(currentStage)
+    const nextStage = stageOrder[stageIdx + 1]
     if (nextStage) {
       setCurrentStage(nextStage as TournamentStage)
     }
@@ -335,9 +343,7 @@ export default function TournamentControl() {
 
   // 获取当前阶段晋级人数（支持自定义阶段）
   const getAdvanceCount = (stage: string): number => {
-    const custom = customStages.find((c) => c.id === stage)
-    if (custom) return custom.advanceCount
-    return STAGE_ADVANCE_COUNT[stage as TournamentStage] ?? 0
+    return getStageAdvanceCount(stage, customStages)
   }
 
   // 获取当前阶段显示名称（支持自定义阶段）
@@ -347,6 +353,9 @@ export default function TournamentControl() {
     return STAGE_LABELS[stage as TournamentStage] ?? stage
   }
 
+  // 动态阶段顺序
+  const stageOrder = getStageOrder(isCustomMode, customStages)
+
   // ========== 自定义阶段编辑器操作 ==========
 
   const handleAddCustomStage = () => {
@@ -355,6 +364,10 @@ export default function TournamentControl() {
       name: `新阶段 ${editingStages.length + 1}`,
       playerCount: 16,
       advanceCount: 8,
+      rankingMethod: 'global',
+      groupCount: 0,
+      advancePerGroup: 1,
+      songCount: 4,
     }
     setEditingStages([...editingStages, newStage])
   }
@@ -374,9 +387,23 @@ export default function TournamentControl() {
       showToast(`阶段 "${invalid.name}" 配置无效：晋级人数必须 ≤ 参赛人数，且都必须 > 0`, 'error')
       return
     }
-    setCustomStages(editingStages)
+    // 验证分组排名：groupCount 和 advancePerGroup 必须 > 0
+    const invalidGroup = editingStages.find(
+      (s) => s.rankingMethod === 'group' && (s.groupCount <= 0 || s.advancePerGroup <= 0)
+    )
+    if (invalidGroup) {
+      showToast(`阶段 "${invalidGroup.name}" 使用分组排名，分组数量和每组晋级人数必须 > 0`, 'error')
+      return
+    }
+    if (isTournamentStarted) {
+      // 比赛中途：只更新未来阶段
+      updateFutureStages(editingStages)
+      showToast('未来阶段配置已更新！', 'success')
+    } else {
+      setCustomStages(editingStages)
+      showToast('自定义赛制已保存！', 'success')
+    }
     setShowCustomStageEditor(false)
-    showToast('自定义赛制已保存！', 'success')
   }
 
   const handleCancelCustomStageEdit = () => {
@@ -436,11 +463,11 @@ export default function TournamentControl() {
       // 切换到自定义模式时，如果还没有自定义阶段，初始化一个默认配置
       if (customStages.length === 0) {
         const defaultCustom: CustomStageConfig[] = [
-          { id: 'round1', name: 'N进16', playerCount: 24, advanceCount: 16 },
-          { id: 'round2', name: '16进8', playerCount: 16, advanceCount: 8 },
-          { id: 'round3', name: '8进4', playerCount: 8, advanceCount: 4 },
-          { id: 'round4', name: '半决赛', playerCount: 4, advanceCount: 2 },
-          { id: 'round5', name: '决赛', playerCount: 2, advanceCount: 1 },
+          { id: 'round1', name: 'N进16', playerCount: 24, advanceCount: 16, rankingMethod: 'global', groupCount: 0, advancePerGroup: 1, songCount: 4 },
+          { id: 'round2', name: '16进8', playerCount: 16, advanceCount: 8, rankingMethod: 'group', groupCount: 8, advancePerGroup: 1, songCount: 4 },
+          { id: 'round3', name: '8进4', playerCount: 8, advanceCount: 4, rankingMethod: 'group', groupCount: 4, advancePerGroup: 1, songCount: 4 },
+          { id: 'round4', name: '半决赛', playerCount: 4, advanceCount: 2, rankingMethod: 'group', groupCount: 2, advancePerGroup: 1, songCount: 4 },
+          { id: 'round5', name: '决赛', playerCount: 2, advanceCount: 1, rankingMethod: 'global', groupCount: 0, advancePerGroup: 1, songCount: 4 },
         ]
         setEditingStages(defaultCustom)
         setCustomStages(defaultCustom)
@@ -452,15 +479,18 @@ export default function TournamentControl() {
   }
 
   const stageData = stages[currentStage]
-  const stageIndex = STAGE_ORDER.indexOf(currentStage)
+  const stageIndex = stageOrder.indexOf(currentStage)
   const advanceCount = getAdvanceCount(currentStage)
   const stageLabel = getStageLabel(currentStage)
 
   // 阶段导航项渲染
   const renderStageNavItem = (stage: TournamentStage, idx: number) => {
-    const isCompleted = stages[stage].locked && stages[stage].players.length > 0
+    const stageData = stages[stage]
+    if (!stageData) return null
+    const isCompleted = stageData.locked && stageData.players.length > 0
     const isCurrent = stage === currentStage
-    const isAvailable = idx === 0 || (stages[STAGE_ORDER[idx - 1]].locked && stages[STAGE_ORDER[idx - 1]].players.length > 0)
+    const prevStageData = idx > 0 ? stages[stageOrder[idx - 1]] : null
+    const isAvailable = idx === 0 || (!!prevStageData?.locked && prevStageData.players.length > 0)
 
     return (
       <button
@@ -478,8 +508,8 @@ export default function TournamentControl() {
         }`}
       >
         <span className="flex-1 truncate">{getStageLabel(stage)}</span>
-        <span className="text-xs opacity-70">{stages[stage].players.length}人</span>
-        {stages[stage].locked && <Lock size={12} className="opacity-70" />}
+        <span className="text-xs opacity-70">{stageData.players.length}人</span>
+        {stageData.locked && <Lock size={12} className="opacity-70" />}
         {isCompleted && !isCurrent && <span className="text-green-400">✓</span>}
       </button>
     )
@@ -488,10 +518,13 @@ export default function TournamentControl() {
   // 小屏幕顶部水平导航
   const renderMobileStageNav = () => (
     <div className="md:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-thin mb-4">
-      {STAGE_ORDER.map((stage, idx) => {
-        const isCompleted = stages[stage].locked && stages[stage].players.length > 0
+      {stageOrder.map((stage, idx) => {
+        const stageData = stages[stage]
+        if (!stageData) return null
+        const isCompleted = stageData.locked && stageData.players.length > 0
         const isCurrent = stage === currentStage
-        const isAvailable = idx === 0 || (stages[STAGE_ORDER[idx - 1]].locked && stages[STAGE_ORDER[idx - 1]].players.length > 0)
+        const prevStageData = idx > 0 ? stages[stageOrder[idx - 1]] : null
+        const isAvailable = idx === 0 || (!!prevStageData?.locked && prevStageData.players.length > 0)
 
         return (
           <button
@@ -509,7 +542,7 @@ export default function TournamentControl() {
             }`}
           >
             <span>{getStageLabel(stage)}</span>
-            {stages[stage].locked && <Lock size={10} />}
+            {stageData.locked && <Lock size={10} />}
           </button>
         )
       })}
@@ -545,7 +578,7 @@ export default function TournamentControl() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2 stagger-children">
         <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-1">阶段导航</h3>
-        {STAGE_ORDER.map((stage, idx) => renderStageNavItem(stage, idx))}
+        {stageOrder.map((stage, idx) => renderStageNavItem(stage, idx))}
       </div>
 
       {/* 底部计时器 */}
@@ -639,7 +672,7 @@ export default function TournamentControl() {
                 <Undo2 size={16} /> 撤销排名
               </button>
             )}
-            {stageIndex < STAGE_ORDER.length - 1 && (
+            {stageIndex < stageOrder.length - 1 && (
               <button onClick={handleNextStage} className="btn-primary press-down btn-shimmer">
                 进入下一阶段 <ChevronRight size={16} />
               </button>
@@ -737,11 +770,17 @@ export default function TournamentControl() {
                     </button>
                     {customStages.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {customStages.map((s) => (
-                          <span key={s.id} className="chip">
-                            {s.name} ({s.playerCount}人 → {s.advanceCount}人)
-                          </span>
-                        ))}
+                        {customStages.map((s) => {
+                          const methodLabel = s.rankingMethod === 'group' ? '分组' : '全局'
+                          const loserLabel = s.loserStageId
+                            ? ` →败者:${customStages.find((c) => c.id === s.loserStageId)?.name || '?'}`
+                            : ''
+                          return (
+                            <span key={s.id} className="chip">
+                              {s.name} ({s.playerCount}人→{s.advanceCount}人 [{methodLabel}] {s.songCount}曲{loserLabel})
+                            </span>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -785,7 +824,7 @@ export default function TournamentControl() {
                     <button
                       onClick={() => {
                         const names = [...checkinNames]
-                        addPlayers('n216', names)
+                        addPlayers(stageOrder[0] || 'n216', names)
                         setCheckinNames([])
                       }}
                       className="btn-primary press-down btn-shimmer"
@@ -873,16 +912,16 @@ export default function TournamentControl() {
               </div>
 
               {/* 预览选手列表 */}
-              {stages.n216.players.length > 0 && (
+              {(stages[stageOrder[0]]?.players.length ?? 0) > 0 && (
                 <div className="glass-panel rounded-2xl p-5 mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-white/80">
-                      已添加 <span className="text-amber-400 font-bold">{stages.n216.players.length}</span> 名选手
+                      已添加 <span className="text-amber-400 font-bold">{stages[stageOrder[0]]?.players.length ?? 0}</span> 名选手
                     </h4>
                     <button
                       onClick={() => {
                         if (confirm('确定要清空所有选手吗？')) {
-                          clearPlayers('n216')
+                          clearPlayers(stageOrder[0] || 'n216')
                         }
                       }}
                       className="btn-danger text-xs py-1.5 px-3 press-down"
@@ -891,7 +930,7 @@ export default function TournamentControl() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto stagger-children">
-                    {stages.n216.players.map((p) => (
+                    {(stages[stageOrder[0]]?.players ?? []).map((p) => (
                       <div
                         key={p.id}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-panel text-white/90 text-sm group hover:border-rose-400/30 transition-colors hover-lift"
@@ -903,7 +942,7 @@ export default function TournamentControl() {
                         <button
                           onClick={() => {
                             if (confirm(`确定要删除选手 "${p.name}" 吗？`)) {
-                              removePlayer('n216', p.id)
+                              removePlayer(stageOrder[0] || 'n216', p.id)
                             }
                           }}
                           className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400 text-xs ml-1"
@@ -967,48 +1006,83 @@ export default function TournamentControl() {
 
               <button
                 onClick={handleStartTournament}
-                disabled={stages.n216.players.length < 2}
+                disabled={(stages[stageOrder[0]]?.players.length ?? 0) < 2}
                 className={cn(
                   'w-full py-5 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3',
-                  stages.n216.players.length < 2
+                  (stages[stageOrder[0]]?.players.length ?? 0) < 2
                     ? 'btn-secondary press-down opacity-50 cursor-not-allowed'
                     : 'btn-primary press-down btn-shimmer hover:-translate-y-0.5'
                 )}
               >
                 <Trophy size={24} />
-                开始赛事 {stages.n216.players.length >= 2 && `（${stages.n216.players.length}人参赛）`}
+                开始赛事 {(stages[stageOrder[0]]?.players.length ?? 0) >= 2 && `（${stages[stageOrder[0]]?.players.length ?? 0}人参赛）`}
               </button>
             </div>
           </div>
 
           {/* 自定义阶段编辑器弹窗 */}
-          {showCustomStageEditor && (
+          {showCustomStageEditor && (() => {
+              // 计算每个阶段的状态
+              const getStageStatus = (stageId: string, idx: number): 'locked' | 'current' | 'future' | 'editable' => {
+                if (!isTournamentStarted) return 'editable'
+                if (stageId === currentStage) return 'current'
+                const currentIdx = stageOrder.indexOf(currentStage)
+                if (idx < currentIdx) return 'locked'
+                return 'future'
+              }
+
+              return (
             <div
               className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
               role="dialog"
               aria-modal="true"
             >
-              <div className="glass-panel rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+              <div className="glass-panel rounded-2xl p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     <LayoutList size={22} className="text-purple-400" />
-                    编辑自定义阶段
+                    {isTournamentStarted ? '修改未来阶段配置' : '编辑自定义阶段'}
                   </h3>
                   <button onClick={handleCancelCustomStageEdit} className="btn-ghost press-down">
                     <X size={22} />
                   </button>
                 </div>
 
+                {isTournamentStarted && (
+                  <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-400/20 text-amber-300 text-sm">
+                    赛事进行中：当前阶段之前的阶段无法修改，仅可修改当前阶段之后的阶段规则。
+                  </div>
+                )}
+
                 <div className="space-y-3 mb-4">
-                  {editingStages.map((stage, index) => (
-                    <div key={stage.id} className="glass-panel rounded-2xl p-4 hover-lift">
+                  {editingStages.map((stage, index) => {
+                    const status = getStageStatus(stage.id, index)
+                    const isReadonly = status === 'locked' || status === 'current'
+                    const isGroupMethod = stage.rankingMethod === 'group'
+
+                    return (
+                    <div key={stage.id} className={`glass-panel rounded-2xl p-4 hover-lift ${isReadonly ? 'opacity-50' : ''}`}>
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-sm font-bold text-white/60">阶段 {index + 1}</span>
-                        <button onClick={() => handleRemoveCustomStage(stage.id)} className="btn-ghost ml-auto press-down">
-                          <Minus size={18} className="text-red-400" />
-                        </button>
+                        {status === 'locked' && (
+                          <span className="chip text-xs bg-red-500/20 text-red-400 border-red-400/30"><Lock size={10} /> 已锁定</span>
+                        )}
+                        {status === 'current' && (
+                          <span className="chip text-xs bg-blue-500/20 text-blue-400 border-blue-400/30">当前阶段</span>
+                        )}
+                        {status === 'future' && (
+                          <span className="chip text-xs bg-green-500/20 text-green-400 border-green-400/30">未来阶段</span>
+                        )}
+                        {status === 'editable' && !isTournamentStarted && (
+                          <span className="chip text-xs bg-purple-500/20 text-purple-400 border-purple-400/30">可编辑</span>
+                        )}
+                        {!isReadonly && (
+                          <button onClick={() => handleRemoveCustomStage(stage.id)} className="btn-ghost ml-auto press-down">
+                            <Minus size={18} className="text-red-400" />
+                          </button>
+                        )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-2 mb-2">
                         <div>
                           <label className="text-xs text-white/50 block mb-1">阶段名称</label>
                           <input
@@ -1016,6 +1090,7 @@ export default function TournamentControl() {
                             value={stage.name}
                             onChange={(e) => handleUpdateCustomStage(stage.id, 'name', e.target.value)}
                             className="input-refined"
+                            disabled={isReadonly}
                           />
                         </div>
                         <div>
@@ -1026,6 +1101,7 @@ export default function TournamentControl() {
                             value={stage.playerCount}
                             onChange={(e) => handleUpdateCustomStage(stage.id, 'playerCount', parseInt(e.target.value) || 2)}
                             className="input-refined"
+                            disabled={isReadonly}
                           />
                         </div>
                         <div>
@@ -1036,16 +1112,103 @@ export default function TournamentControl() {
                             value={stage.advanceCount}
                             onChange={(e) => handleUpdateCustomStage(stage.id, 'advanceCount', parseInt(e.target.value) || 1)}
                             className="input-refined"
+                            disabled={isReadonly}
                           />
                         </div>
                       </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-white/50 block mb-1">排名方式</label>
+                          <select
+                            value={stage.rankingMethod}
+                            onChange={(e) => handleUpdateCustomStage(stage.id, 'rankingMethod', e.target.value)}
+                            className="input-refined"
+                            disabled={isReadonly}
+                          >
+                            <option value="global">全局排名</option>
+                            <option value="group">分组排名</option>
+                          </select>
+                        </div>
+                        {isGroupMethod && (
+                          <>
+                            <div>
+                              <label className="text-xs text-white/50 block mb-1">分组数量</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={stage.groupCount}
+                                onChange={(e) => handleUpdateCustomStage(stage.id, 'groupCount', parseInt(e.target.value) || 1)}
+                                className="input-refined"
+                                disabled={isReadonly}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-white/50 block mb-1">每组晋级</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={stage.advancePerGroup}
+                                onChange={(e) => handleUpdateCustomStage(stage.id, 'advancePerGroup', parseInt(e.target.value) || 1)}
+                                className="input-refined"
+                                disabled={isReadonly}
+                              />
+                            </div>
+                          </>
+                        )}
+                        {!isGroupMethod && (
+                          <div className="col-span-2">
+                            <label className="text-xs text-white/50 block mb-1">计算说明</label>
+                            <p className="text-xs text-white/30 py-2">按所有选手完成率降序排列，前 {stage.advanceCount} 名晋级</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div>
+                          <label className="text-xs text-white/50 block mb-1">歌曲数</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={stage.songCount}
+                            onChange={(e) => handleUpdateCustomStage(stage.id, 'songCount', parseInt(e.target.value) || 4)}
+                            className="input-refined"
+                            disabled={isReadonly}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs text-white/50 block mb-1">败者组阶段</label>
+                          <select
+                            value={stage.loserStageId ?? ''}
+                            onChange={(e) => handleUpdateCustomStage(stage.id, 'loserStageId', e.target.value || undefined as unknown as string)}
+                            className="input-refined"
+                            disabled={isReadonly}
+                          >
+                            <option value="">无</option>
+                            {editingStages
+                              .filter((s) => s.id !== stage.id)
+                              .map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                          </select>
+                          {stage.loserStageId && (
+                            <p className="text-xs text-amber-400/70 mt-1">
+                              该阶段淘汰选手将进入「{editingStages.find((s) => s.id === stage.loserStageId)?.name || '未知阶段'}」
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
-                <button onClick={handleAddCustomStage} className="btn-secondary w-full mb-3 press-down">
-                  <Plus size={18} /> 添加阶段
-                </button>
+                {!isTournamentStarted && (
+                  <button onClick={handleAddCustomStage} className="btn-secondary w-full mb-3 press-down">
+                    <Plus size={18} /> 添加阶段
+                  </button>
+                )}
 
                 <div className="flex gap-3">
                   <button onClick={handleCancelCustomStageEdit} className="btn-secondary flex-1 press-down">
@@ -1057,7 +1220,8 @@ export default function TournamentControl() {
                 </div>
               </div>
             </div>
-          )}
+              )
+            })()}
 
           {/* 模板管理弹窗 */}
           {showTemplateManager && (
@@ -1188,6 +1352,7 @@ export default function TournamentControl() {
                   <tr className="text-white/50 border-b border-white/10">
                     <th className="text-left py-2 px-2">排名</th>
                     <th className="text-left py-2 px-2">选手</th>
+                    <th className="text-center py-2 px-2">Rating</th>
                     <th className="text-left py-2 px-2">分数</th>
                     <th className="text-left py-2 px-2">DX 分数</th>
                     <th className="text-left py-2 px-2">结果</th>
@@ -1205,6 +1370,9 @@ export default function TournamentControl() {
                       >
                         <td className="py-2 px-2 font-mono">{player.rank ?? '-'}</td>
                         <td className="py-2 px-2 font-medium">{player.name}</td>
+                        <td className="py-2 px-2 text-center font-mono text-purple-300 text-xs">
+                          {player.rating !== null && player.rating !== undefined ? player.rating : '-'}
+                        </td>
                         <td className="py-2 px-2 font-mono">{player.score?.toFixed(4) ?? '-'}</td>
                         <td className="py-2 px-2 font-mono">{player.dxScore || '-'}</td>
                         <td className="py-2 px-2">
@@ -1287,8 +1455,8 @@ export default function TournamentControl() {
           </div>
         )}
 
-        {/* N进16 按种子分组（赛事开始后才可操作） */}
-        {currentStage === 'n216' && stageData.players.length >= 16 && (
+        {/* N进16 按种子分组（赛事开始后才可操作，仅默认赛制） */}
+        {!isCustomMode && currentStage === 'n216' && stageData.players.length >= 16 && (
           <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Swords size={20} className="text-blue-400" />
@@ -1396,8 +1564,8 @@ export default function TournamentControl() {
           </div>
         )}
 
-        {/* 创建分组按钮（未锁定时） */}
-        {!stageData.locked && stageData.players.length > 0 && stageData.groups.length === 0 && (
+        {/* 创建分组按钮（未锁定时，仅默认赛制） */}
+        {!isCustomMode && !stageData.locked && stageData.players.length > 0 && stageData.groups.length === 0 && (
           <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
             <Swords size={20} className="text-blue-400" />
             <span className="text-sm font-semibold text-white/70">分组设置</span>
@@ -1434,8 +1602,55 @@ export default function TournamentControl() {
                 <Swords size={16} /> 1v3 / 2v4 对阵
               </button>
             )}
+            {currentStage === 'semiLoser' && (
+              <button
+                onClick={() => {
+                  const res = createGroupsSemiLoser()
+                  showToast(res.message ?? '', res.success ? 'success' : 'info')
+                }}
+                className="btn-primary press-down btn-shimmer text-sm"
+              >
+                <Swords size={16} /> 生成败者组对阵
+              </button>
+            )}
           </div>
         )}
+        {/* Rating 分组（未锁定时） */}
+        {!stageData.locked && stageData.players.length >= 2 && (
+          <div className="glass-panel rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3">
+            <Hash size={20} className="text-purple-400" />
+            <span className="text-sm font-semibold text-white/70">Rating 分组</span>
+            <span className="text-xs text-white/40">
+              按 rating 相似度分组，rating 相近的选手分在同一组
+            </span>
+            <div className="flex gap-2 ml-auto">
+              {[2, 3, 4].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    const res = createGroupsByRating(currentStage, size)
+                    showToast(res.message ?? '', res.success ? 'success' : 'info')
+                  }}
+                  className="btn-secondary text-sm press-down"
+                >
+                  <Hash size={14} /> {size}人一组
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+
+        {/* 阶段信息 */}
+        <div className="glass-panel rounded-2xl p-4 mb-4 flex items-center gap-3">
+          <Music size={20} className="text-cyan-400" />
+          <span className="text-sm font-semibold text-white/70">
+            歌曲数：{getStageSongCount(currentStage, isCustomMode ? customStages : undefined)} 首
+          </span>
+          <span className="text-xs text-white/40">
+            （课题曲 + 自选曲）
+          </span>
+        </div>
 
         {/* 分数表格 */}
         <div className="glass-panel rounded-2xl overflow-hidden">
@@ -1445,6 +1660,7 @@ export default function TournamentControl() {
                 <th className="px-4 py-3 text-left text-sm font-bold text-white/60 w-16">排名</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-white/60 w-16">种子</th>
                 <th className="px-4 py-3 text-left text-sm font-bold text-white/60">选手</th>
+                <th className="px-4 py-3 text-center text-sm font-bold text-white/60 w-24">Rating</th>
                 <th className="px-4 py-3 text-right text-sm font-bold text-white/60 w-40">完成率</th>
                 <th className="px-4 py-3 text-right text-sm font-bold text-white/60 w-40">DX分数</th>
               </tr>
@@ -1507,6 +1723,31 @@ export default function TournamentControl() {
                   </td>
                   <td className="px-4 py-3">
                     {stageData.locked ? (
+                      <span className="text-center block text-purple-300 font-mono text-sm">
+                        {player.rating !== null && player.rating !== undefined ? player.rating : '-'}
+                      </span>
+                    ) : (
+                      <input
+                        type="number"
+                        value={player.rating ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === '') {
+                            updatePlayerRating(currentStage, player.id, null)
+                          } else {
+                            const num = parseInt(val)
+                            if (!isNaN(num)) {
+                              updatePlayerRating(currentStage, player.id, num)
+                            }
+                          }
+                        }}
+                        placeholder="-"
+                        className="input-refined w-24 py-2 text-center text-purple-300 font-mono text-sm"
+                      />
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {stageData.locked ? (
                       <span className="text-right block text-white font-mono">
                         {player.score !== null ? player.score.toFixed(4) : '-'}
                       </span>
@@ -1542,7 +1783,7 @@ export default function TournamentControl() {
               ))}
               {stageData.players.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-white/40">
+                  <td colSpan={6} className="px-4 py-8 text-center text-white/40">
                     暂无选手
                   </td>
                 </tr>
@@ -1553,7 +1794,7 @@ export default function TournamentControl() {
 
         {/* 上一阶段晋级选手单元块展示 */}
         {stageIndex > 0 && (() => {
-          const prevStage = STAGE_ORDER[stageIndex - 1]
+          const prevStage = stageOrder[stageIndex - 1]
           const prevStageData = stages[prevStage]
           if (!prevStageData || prevStageData.players.length === 0) return null
           const advancedPlayers = prevStageData.players
@@ -1572,12 +1813,12 @@ export default function TournamentControl() {
                   <div
                     key={p.id}
                     className={`flex flex-col items-center gap-2 px-5 py-4 rounded-xl min-w-[140px] glass-panel ${
-                      prevStage === '16to8'
+                      !isCustomMode && prevStage === '16to8'
                         ? 'border-blue-400/50 shadow-lg shadow-blue-500/10'
                         : 'border-green-400/40 shadow-lg shadow-green-500/10'
                     }`}
                   >
-                    {prevStage === '16to8' && (
+                    {!isCustomMode && prevStage === '16to8' && (
                       <span className="px-2 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/50 text-blue-300 text-xs font-bold">
                         8强
                       </span>
